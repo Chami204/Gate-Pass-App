@@ -138,7 +138,7 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
 # Function to create gate pass image with EXTRA LARGE, READABLE text
 def create_gate_pass_image(gate_pass_data):
     # Create a larger image for better readability
-    width, height = 2000, 1400  # Good size for readability
+    width, height = 800, 600  # Good size for readability
     img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
     
@@ -569,5 +569,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
