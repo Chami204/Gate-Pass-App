@@ -135,9 +135,10 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         return False
 
 # Function to create gate pass image with EXTRA LARGE, READABLE text
+# Function to create gate pass image with EXTRA LARGE, READABLE text
 def create_gate_pass_image(gate_pass_data):
     # Create a larger image for better readability
-    width, height = 2400, 1800  # Increased size for larger fonts
+    width, height = 2000, 1400  # Good size for readability
     img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
     
@@ -149,37 +150,28 @@ def create_gate_pass_image(gate_pass_data):
     text_color = (0, 0, 0)       # Black
     table_header_color = (220, 220, 220)  # Light Gray
     
-    # Try different fonts in order of preference - TRIPLE THE SIZES
-    fonts_to_try = [
-        "calibri.ttf",
-        "arial.ttf", 
-        "arialbd.ttf",
-        "times.ttf"
-    ]
-    
-    title_font = None
-    header_font = None
-    normal_font = None
-    table_font = None
-    signature_font = None
-    
-    for font_path in fonts_to_try:
+    # DEBUG: Check available fonts and use default font with manual size scaling
+    try:
+        # Try to use a very large default font
+        title_font = ImageFont.load_default()
+        header_font = ImageFont.load_default()
+        normal_font = ImageFont.load_default()
+        table_font = ImageFont.load_default()
+        signature_font = ImageFont.load_default()
+        
+        # If we have truetype fonts available, use them with LARGE sizes
         try:
-            if title_font is None:
-                title_font = ImageFont.truetype(font_path, 120)     # Massive title
-            if header_font is None:
-                header_font = ImageFont.truetype(font_path, 80)     # Very large headers
-            if normal_font is None:
-                normal_font = ImageFont.truetype(font_path, 65)     # Large normal text
-            if table_font is None:
-                table_font = ImageFont.truetype(font_path, 55)      # Large table text
-            if signature_font is None:
-                signature_font = ImageFont.truetype(font_path, 45)  # Large signature labels
+            title_font = ImageFont.truetype("arial.ttf", 45)
+            header_font = ImageFont.truetype("arial.ttf", 35)
+            normal_font = ImageFont.truetype("arial.ttf", 28)
+            table_font = ImageFont.truetype("arial.ttf", 24)
+            signature_font = ImageFont.truetype("arial.ttf", 20)
         except:
-            continue
-    
-    # Fallback to default fonts if none found
-    if title_font is None:
+            # If truetype fails, use default but we'll manually make text larger by using multiple lines
+            pass
+            
+    except Exception as e:
+        # Fallback to default fonts
         title_font = ImageFont.load_default()
         header_font = ImageFont.load_default()
         normal_font = ImageFont.load_default()
@@ -187,36 +179,35 @@ def create_gate_pass_image(gate_pass_data):
         signature_font = ImageFont.load_default()
     
     # Draw thick border around entire gate pass
-    draw.rectangle([30, 30, width-30, height-30], outline=border_color, width=8)
+    draw.rectangle([20, 20, width-20, height-20], outline=border_color, width=6)
     
-    # Header section with professional styling
+    # Header section with professional styling - SIMPLIFIED
     header_bg_color = (240, 248, 255)  # Alice Blue background
-    draw.rectangle([40, 40, width-40, 220], fill=header_bg_color, outline=accent_color, width=4)
     
-    # Main title - EXTRA LARGE and prominent
-    draw.text((width//2, 90), "ADVICE DISPATCH GATE PASS", fill=title_color, font=title_font, anchor='mm')
-    draw.text((width//2, 160), "ALUMEX GROUP", fill=header_color, font=header_font, anchor='mm')
-    draw.text((width//2, 210), "Sapugaskanda, Makola • Tel: 2400332,2400333,2400421", fill=text_color, font=normal_font, anchor='mm')
+    # Main title - SIMPLE LARGE TEXT
+    draw.rectangle([30, 30, width-30, 120], fill=header_bg_color, outline=accent_color, width=3)
+    draw.text((width//2, 60), "ADVICE DISPATCH GATE PASS", fill=title_color, font=title_font, anchor='mm')
+    draw.text((width//2, 100), "ALUMEX GROUP", fill=header_color, font=header_font, anchor='mm')
+    
+    # Contact info
+    draw.text((width//2, 140), "Sapugaskanda, Makola", fill=text_color, font=normal_font, anchor='mm')
+    draw.text((width//2, 170), "Tel: 2400332,2400333,2400421", fill=text_color, font=normal_font, anchor='mm')
     
     # Reference number - highlighted
     ref_bg_color = (255, 250, 205)  # Lemon Chiffon
-    draw.rectangle([width-500, 240, width-40, 300], fill=ref_bg_color, outline=accent_color, width=3)
-    draw.text((width-270, 270), f"REF: {gate_pass_data['reference']}", fill=title_color, font=header_font, anchor='mm')
+    draw.rectangle([width-300, 180, width-30, 230], fill=ref_bg_color, outline=accent_color, width=2)
+    draw.text((width-165, 205), f"REF: {gate_pass_data['reference']}", fill=title_color, font=header_font, anchor='mm')
     
-    # Main content area
-    content_start_y = 340
+    # Main content area - SIMPLIFIED LAYOUT
+    content_start_y = 260
     
-    # Left column - Basic information
-    left_col_x = 60
-    right_col_x = width // 2 + 40
+    # Basic Information Section
+    draw.rectangle([30, content_start_y, width//2 - 10, content_start_y + 40], fill=header_color)
+    draw.text((width//4, content_start_y + 20), "BASIC INFORMATION", fill=(255, 255, 255), font=header_font, anchor='mm')
     
-    # Section title for basic info
-    draw.rectangle([left_col_x, content_start_y, width//2 - 30, content_start_y + 60], fill=header_color)
-    draw.text((left_col_x + 300, content_start_y + 30), "BASIC INFORMATION", fill=(255, 255, 255), font=header_font, anchor='mm')
+    info_y = content_start_y + 60
     
-    info_y = content_start_y + 100
-    
-    # Field labels and values with better spacing
+    # Field data with LARGE text
     fields = [
         ("Requested by:", gate_pass_data['requested_by']),
         ("Send to:", gate_pass_data['send_to']),
@@ -227,124 +218,96 @@ def create_gate_pass_image(gate_pass_data):
     ]
     
     for label, value in fields:
-        # Label
-        draw.text((left_col_x + 30, info_y), label, fill=header_color, font=normal_font)
-        # Value with background
-        if value:  # Only draw background if there's a value
-            draw.rectangle([left_col_x + 300, info_y - 10, width//2 - 60, info_y + 50], fill=(250, 250, 250), outline=(200, 200, 200), width=2)
-        draw.text((left_col_x + 320, info_y + 20), str(value), fill=text_color, font=normal_font)
-        info_y += 80  # More space between fields
+        # Label in bold color
+        draw.text((50, info_y), label, fill=header_color, font=normal_font)
+        # Value
+        draw.text((200, info_y), str(value), fill=text_color, font=normal_font)
+        info_y += 45
     
-    # Right column - Items table
-    # Section title for items
-    draw.rectangle([right_col_x, content_start_y, width-60, content_start_y + 60], fill=accent_color)
-    draw.text((right_col_x + 300, content_start_y + 30), "ITEMS DISPATCH DETAILS", fill=(255, 255, 255), font=header_font, anchor='mm')
+    # Items Section
+    items_start_y = content_start_y
+    draw.rectangle([width//2 + 10, items_start_y, width-30, items_start_y + 40], fill=accent_color)
+    draw.text((width//2 + width//4, items_start_y + 20), "ITEMS DISPATCH DETAILS", fill=(255, 255, 255), font=header_font, anchor='mm')
     
-    # Table setup
-    table_start_y = content_start_y + 100
-    col_widths = [150, 500, 200, 200]  # Adjusted widths for larger text
-    cell_height = 70  # Taller cells for larger text
+    # Table with LARGE text
+    table_y = items_start_y + 60
+    col_widths = [80, 250, 120, 120]
+    row_height = 40
     
-    # Table headers
-    headers = ["QUANTITY", "DESCRIPTION", "TOTAL VALUE", "INVOICE NO"]
-    x_pos = right_col_x
-    
-    # Draw header row
-    draw.rectangle([x_pos, table_start_y, x_pos + sum(col_widths), table_start_y + cell_height], 
-                   fill=table_header_color, outline=border_color, width=3)
+    # Headers
+    headers = ["QTY", "DESCRIPTION", "VALUE", "INVOICE"]
+    x_pos = width//2 + 10
+    draw.rectangle([x_pos, table_y, x_pos + sum(col_widths), table_y + row_height], fill=table_header_color)
     
     for i, header in enumerate(headers):
-        draw.text((x_pos + col_widths[i]//2, table_start_y + cell_height//2), 
-                 header, fill=text_color, font=table_font, anchor='mm')
+        draw.text((x_pos + col_widths[i]//2, table_y + row_height//2), header, fill=text_color, font=table_font, anchor='mm')
         if i < len(headers) - 1:
-            draw.line([x_pos + col_widths[i], table_start_y, x_pos + col_widths[i], table_start_y + cell_height], 
-                     fill=border_color, width=3)
-        x_pos += col_widths[i]
+            x_pos += col_widths[i]
     
     # Table rows
-    current_y = table_start_y + cell_height
-    
+    current_y = table_y + row_height
     for item in gate_pass_data['items']:
-        x_pos = right_col_x
-        
-        # Alternate row colors for better readability
+        x_pos = width//2 + 10
         row_color = (255, 255, 255) if gate_pass_data['items'].index(item) % 2 == 0 else (245, 245, 245)
-        draw.rectangle([x_pos, current_y, x_pos + sum(col_widths), current_y + cell_height], 
-                       fill=row_color, outline=border_color, width=2)
+        draw.rectangle([x_pos, current_y, x_pos + sum(col_widths), current_y + row_height], fill=row_color, outline=(200, 200, 200), width=1)
         
-        # Cell contents
-        draw.text((x_pos + col_widths[0]//2, current_y + cell_height//2), 
-                 str(item.get('Quantity', '')), fill=text_color, font=table_font, anchor='mm')
+        # Draw cell contents with LARGE text
+        draw.text((x_pos + col_widths[0]//2, current_y + row_height//2), str(item.get('Quantity', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[0]
-        
-        draw.line([x_pos, current_y, x_pos, current_y + cell_height], fill=border_color, width=2)
-        draw.text((x_pos + col_widths[1]//2, current_y + cell_height//2), 
-                 str(item.get('Description', '')), fill=text_color, font=table_font, anchor='mm')
+        draw.text((x_pos + col_widths[1]//2, current_y + row_height//2), str(item.get('Description', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[1]
-        
-        draw.line([x_pos, current_y, x_pos, current_y + cell_height], fill=border_color, width=2)
-        draw.text((x_pos + col_widths[2]//2, current_y + cell_height//2), 
-                 str(item.get('Total Value', '')), fill=text_color, font=table_font, anchor='mm')
+        draw.text((x_pos + col_widths[2]//2, current_y + row_height//2), str(item.get('Total Value', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[2]
+        draw.text((x_pos + col_widths[3]//2, current_y + row_height//2), str(item.get('Invoice No', '')), fill=text_color, font=table_font, anchor='mm')
         
-        draw.line([x_pos, current_y, x_pos, current_y + cell_height], fill=border_color, width=2)
-        draw.text((x_pos + col_widths[3]//2, current_y + cell_height//2), 
-                 str(item.get('Invoice No', '')), fill=text_color, font=table_font, anchor='mm')
-        
-        current_y += cell_height
+        current_y += row_height
     
-    # Signatures section at bottom
-    signature_section_y = height - 350
+    # Signatures section - SIMPLIFIED
+    signature_y = height - 200
     
-    # Signature section title
-    draw.rectangle([60, signature_section_y - 70, width-60, signature_section_y - 10], fill=header_color)
-    draw.text((width//2, signature_section_y - 40), "AUTHORIZATIONS & SIGNATURES", fill=(255, 255, 255), font=header_font, anchor='mm')
+    # Signature titles
+    draw.rectangle([30, signature_y - 40, width-30, signature_y - 10], fill=header_color)
+    draw.text((width//2, signature_y - 25), "SIGNATURES", fill=(255, 255, 255), font=header_font, anchor='mm')
     
     # Signature boxes
-    sig_box_width = 400
-    sig_box_height = 120
-    spacing = (width - 120 - 3*sig_box_width) // 4
+    sig_width = 250
+    spacing = 50
+    start_x = (width - (3*sig_width + 2*spacing)) // 2
     
-    signature_titles = ["CERTIFIED BY", "AUTHORIZED BY", "RECEIVED BY"]
-    signature_labels = ["Certifying Officer", "Authorizing Manager", "Receiving Party"]
-    signature_x_positions = [60 + spacing, 60 + spacing*2 + sig_box_width, 60 + spacing*3 + sig_box_width*2]
+    signatures = [
+        ("CERTIFIED BY", "Certifying Officer", gate_pass_data.get('certified_signature')),
+        ("AUTHORIZED BY", "Authorizing Manager", gate_pass_data.get('authorized_signature')),
+        ("RECEIVED BY", "Receiving Party", gate_pass_data.get('received_signature'))
+    ]
     
-    for i, title in enumerate(signature_titles):
-        x_pos = signature_x_positions[i]
+    for i, (title, label, signature) in enumerate(signatures):
+        x_pos = start_x + i * (sig_width + spacing)
         
-        # Signature box with border
-        draw.rectangle([x_pos, signature_section_y, x_pos + sig_box_width, signature_section_y + sig_box_height], 
-                       outline=border_color, width=4)
+        # Signature box
+        draw.rectangle([x_pos, signature_y, x_pos + sig_width, signature_y + 80], outline=border_color, width=2)
         
-        # Title above box
-        draw.text((x_pos + sig_box_width//2, signature_section_y - 25), title, fill=header_color, font=normal_font, anchor='mm')
+        # Title
+        draw.text((x_pos + sig_width//2, signature_y - 15), title, fill=header_color, font=normal_font, anchor='mm')
         
-        # Signature image if available
-        sig_key = ['certified_signature', 'authorized_signature', 'received_signature'][i]
-        if gate_pass_data.get(sig_key):
+        # Signature or placeholder
+        if signature:
             try:
-                sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data[sig_key].split(',')[1])))
-                sig_img = sig_img.resize((sig_box_width - 30, sig_box_height - 30))
-                img.paste(sig_img, (x_pos + 15, signature_section_y + 15))
+                sig_img = Image.open(io.BytesIO(base64.b64decode(signature.split(',')[1])))
+                sig_img = sig_img.resize((sig_width - 20, 60))
+                img.paste(sig_img, (x_pos + 10, signature_y + 10))
             except:
-                draw.text((x_pos + sig_box_width//2, signature_section_y + sig_box_height//2), 
-                         "SIGNED", fill=(150, 150, 150), font=normal_font, anchor='mm')
+                draw.text((x_pos + sig_width//2, signature_y + 40), "SIGNED", fill=(100, 100, 100), font=normal_font, anchor='mm')
         else:
-            draw.text((x_pos + sig_box_width//2, signature_section_y + sig_box_height//2), 
-                     "[Signature Required]", fill=(200, 200, 200), font=table_font, anchor='mm')
+            draw.text((x_pos + sig_width//2, signature_y + 40), "Signature", fill=(200, 200, 200), font=normal_font, anchor='mm')
         
-        # Party name label below the signature box
-        label_y = signature_section_y + sig_box_height + 20
-        draw.text((x_pos + sig_box_width//2, label_y), signature_labels[i], fill=text_color, font=signature_font, anchor='mm')
-        
-        # Line for written name
-        draw.line([x_pos + 50, label_y + 30, x_pos + sig_box_width - 50, label_y + 30], fill=border_color, width=2)
-        draw.text((x_pos + sig_box_width//2, label_y + 50), "Name & Designation", fill=(150, 150, 150), font=signature_font, anchor='mm')
+        # Label
+        draw.text((x_pos + sig_width//2, signature_y + 100), label, fill=text_color, font=signature_font, anchor='mm')
+        draw.line([x_pos + 30, signature_y + 120, x_pos + sig_width - 30, signature_y + 120], fill=border_color, width=1)
     
-    # Footer with date
-    footer_y = height - 40
+    # Footer
+    footer_y = height - 30
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    draw.text((width//2, footer_y), f"Generated on: {current_date}", fill=(100, 100, 100), font=table_font, anchor='mm')
+    draw.text((width//2, footer_y), f"Generated: {current_date}", fill=(100, 100, 100), font=signature_font, anchor='mm')
     
     return img
 
@@ -606,4 +569,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
