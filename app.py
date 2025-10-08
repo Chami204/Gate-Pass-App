@@ -10,6 +10,8 @@ import io
 import numpy as np
 import os
 from fpdf import FPDF
+import gspread
+from google.oauth2.service_account import Credentials
 
 # Page configuration
 st.set_page_config(
@@ -18,16 +20,47 @@ st.set_page_config(
     layout="centered"
 )
 
-# JSON file for data storage
-DATA_FILE = "gate_passes.json"
+# Google Sheets setup
+def setup_google_sheets():
+    try:
+        # Use Streamlit secrets for credentials
+        if 'gcp_service_account' in st.secrets:
+            creds_dict = st.secrets['gcp_service_account']
+            creds = Credentials.from_service_account_info(creds_dict)
+        else:
+            # For local development - you can create a secrets.toml file
+            st.error("Google Sheets credentials not found. Please set up Streamlit secrets.")
+            return None
+        
+        client = gspread.authorize(creds)
+        
+        # Try to open existing sheet or create new one
+        try:
+            sheet = client.open("Alumex_Gate_Passes").sheet1
+        except:
+            # Create new spreadsheet if it doesn't exist
+            spreadsheet = client.create("Alumex_Gate_Passes")
+            sheet = spreadsheet.sheet1
+            
+            # Set up headers
+            headers = [
+                "Reference", "Requested_By", "Send_To", "Purpose", 
+                "Return_Date", "Dispatch_Type", "Vehicle_Number",
+                "Items_JSON", "Certified_Signature", "Authorized_Signature",
+                "Received_Signature", "Status", "Created_Date", "Completed_Date"
+            ]
+            sheet.append_row(headers)
+            
+            # Make the sheet publicly readable if needed (optional)
+            spreadsheet.share(None, perm_type='anyone', role='reader')
+        
+        return sheet
+    except Exception as e:
+        st.error(f"Error setting up Google Sheets: {e}")
+        return None
 
-# Initialize JSON data file
-def init_data_file():
-    if not os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'w') as f:
-            json.dump({}, f)
-
-init_data_file()
+# Initialize Google Sheets
+gate_pass_sheet = setup_google_sheets()
 
 # Header
 st.markdown("<h1 style='text-align: center; font-size: 16px;'>Advice Dispatch Gate Pass</h1>", unsafe_allow_html=True)
@@ -43,52 +76,101 @@ def generate_reference(data):
     hash_input = f"{data['requested_by']}{timestamp}"
     return f"GP{hashlib.md5(hash_input.encode()).hexdigest()[:8].upper()}"
 
-# Function to save gate pass to JSON
+# Function to save gate pass to Google Sheets
 def save_gate_pass(data):
     try:
-        with open(DATA_FILE, 'r') as f:
-            all_data = json.load(f)
+        if gate_pass_sheet is None:
+            st.error("Google Sheets not initialized")
+            return False
         
-        all_data[data['reference']] = data
+        # Convert items to JSON string
+        items_json = json.dumps(data['items'])
         
-        with open(DATA_FILE, 'w') as f:
-            json.dump(all_data, f, indent=2)
+        # Prepare row data
+        row_data = [
+            data['reference'],
+            data['requested_by'],
+            data['send_to'],
+            data['purpose'],
+            data.get('return_date', ''),
+            data['dispatch_type'],
+            data.get('vehicle_number', ''),
+            items_json,
+            data.get('certified_signature', ''),
+            data.get('authorized_signature', ''),
+            data.get('received_signature', ''),
+            'pending',
+            datetime.datetime.now().isoformat(),
+            ''  # Completed date (empty for now)
+        ]
+        
+        # Append to Google Sheet
+        gate_pass_sheet.append_row(row_data)
         return True
     except Exception as e:
         st.error(f"Error saving gate pass: {e}")
         return False
 
-# Function to get gate pass by reference from JSON
+# Function to get gate pass by reference from Google Sheets
 def get_gate_pass(reference):
     try:
-        with open(DATA_FILE, 'r') as f:
-            all_data = json.load(f)
-        return all_data.get(reference)
+        if gate_pass_sheet is None:
+            return None
+        
+        # Get all records
+        records = gate_pass_sheet.get_all_records()
+        
+        # Find the record with matching reference
+        for record in records:
+            if record['Reference'] == reference:
+                return {
+                    'reference': record['Reference'],
+                    'requested_by': record['Requested_By'],
+                    'send_to': record['Send_To'],
+                    'purpose': record['Purpose'],
+                    'return_date': record['Return_Date'],
+                    'dispatch_type': record['Dispatch_Type'],
+                    'vehicle_number': record['Vehicle_Number'],
+                    'items': json.loads(record['Items_JSON']),
+                    'certified_signature': record['Certified_Signature'],
+                    'authorized_signature': record['Authorized_Signature'],
+                    'received_signature': record['Received_Signature'],
+                    'status': record['Status'],
+                    'created_date': record['Created_Date']
+                }
+        return None
     except Exception as e:
         st.error(f"Error retrieving gate pass: {e}")
         return None
 
-# Function to update signatures in JSON
+# Function to update signatures in Google Sheets
 def update_signatures(reference, certified_sig, authorized_sig, received_sig, vehicle_no):
     try:
-        with open(DATA_FILE, 'r') as f:
-            all_data = json.load(f)
+        if gate_pass_sheet is None:
+            return False
         
-        if reference in all_data:
-            all_data[reference]['authorized_signature'] = authorized_sig
-            all_data[reference]['received_signature'] = received_sig
-            all_data[reference]['vehicle_number'] = vehicle_no
-            all_data[reference]['status'] = 'completed'
-            
-            with open(DATA_FILE, 'w') as f:
-                json.dump(all_data, f, indent=2)
-            return True
+        # Get all records
+        records = gate_pass_sheet.get_all_records()
+        
+        # Find the row index
+        for i, record in enumerate(records):
+            if record['Reference'] == reference:
+                # Update the row (add 2 because of header and 1-based indexing)
+                row_num = i + 2
+                
+                gate_pass_sheet.update_cell(row_num, 9, certified_sig)  # Certified Signature
+                gate_pass_sheet.update_cell(row_num, 10, authorized_sig)  # Authorized Signature
+                gate_pass_sheet.update_cell(row_num, 11, received_sig)  # Received Signature
+                gate_pass_sheet.update_cell(row_num, 7, vehicle_no)  # Vehicle Number
+                gate_pass_sheet.update_cell(row_num, 12, 'completed')  # Status
+                gate_pass_sheet.update_cell(row_num, 14, datetime.datetime.now().isoformat())  # Completed Date
+                
+                return True
         return False
     except Exception as e:
         st.error(f"Error updating signatures: {e}")
         return False
 
-# Function to create PDF gate pass
 # Function to create PDF gate pass in A4 size with footer
 def create_gate_pass_pdf(gate_pass_data):
     # Create PDF class with footer
@@ -238,7 +320,7 @@ def create_gate_pass_pdf(gate_pass_data):
         pdf.rect(x_position, current_y, col_width, 25)
         
         # Add signature image if available
-        if signature:
+        if signature and signature.strip():
             try:
                 # Convert base64 signature to image file
                 sig_img_data = base64.b64decode(signature.split(',')[1])
@@ -252,7 +334,8 @@ def create_gate_pass_pdf(gate_pass_data):
                 pdf.image(temp_file, x=x_position + 2, y=current_y + 2, w=col_width - 4, h=21)
                 
                 # Clean up temp file
-                os.remove(temp_file)
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
             except Exception as e:
                 # If signature image fails, add text placeholder
                 pdf.set_font("Arial", 'I', 8)
@@ -282,10 +365,12 @@ def create_gate_pass_pdf(gate_pass_data):
     
     pdf.ln(5)
     
-    
-    
-    # Remove the old footer generation from the main content
-    # The footer will now automatically appear on all pages
+    # "Name & Designation" labels
+    pdf.set_font("Arial", 'I', 8)
+    for i, (title, label, signature) in enumerate(signatures):
+        x_position = start_x + (i * (col_width + spacing))
+        pdf.set_xy(x_position, pdf.get_y())
+        pdf.cell(col_width, 4, "Name & Designation", 0, 0, 'C')
     
     return pdf
 
@@ -326,6 +411,41 @@ except ImportError:
 
 # Main app logic
 def main():
+    # Check if Google Sheets is connected
+    if gate_pass_sheet is None:
+        st.error("""
+        ⚠️ **Google Sheets not connected!**
+        
+        To set up Google Sheets integration:
+        
+        1. **Create a Google Service Account:**
+           - Go to [Google Cloud Console](https://console.cloud.google.com/)
+           - Create a new project or select existing one
+           - Enable Google Sheets API
+           - Create a service account and download JSON credentials
+        
+        2. **Add to Streamlit Secrets:**
+           In your `.streamlit/secrets.toml` file, add:
+           ```toml
+           [gcp_service_account]
+           type = "service_account"
+           project_id = "your-project-id"
+           private_key_id = "your-private-key-id"
+           private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+           client_email = "your-service-account@your-project.iam.gserviceaccount.com"
+           client_id = "your-client-id"
+           auth_uri = "https://accounts.google.com/o/oauth2/auth"
+           token_uri = "https://oauth2.googleapis.com/token"
+           auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+           client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/your-service-account%40your-project.iam.gserviceaccount.com"
+           ```
+        
+        3. **Share Google Sheet:**
+           - Create a Google Sheet named "Alumex_Gate_Passes"
+           - Share it with the service account email (editor permission)
+        """)
+        return
+    
     tab1, tab2 = st.tabs(["Create New Gate Pass", "Sign Existing Gate Pass"])
     
     with tab1:
@@ -401,9 +521,7 @@ def main():
                 'return_date': return_date.strftime("%Y-%m-%d") if return_date else "",
                 'dispatch_type': dispatch_type,
                 'vehicle_number': vehicle_number,
-                'items': items_data,
-                'status': 'pending',
-                'created_date': datetime.datetime.now().isoformat()
+                'items': items_data
             }
             
             reference = generate_reference(gate_pass_data)
@@ -477,7 +595,7 @@ def main():
                 
                 with col1:
                     st.write("**Certified Signature**")
-                    if gate_pass_data.get('certified_signature'):
+                    if gate_pass_data.get('certified_signature') and gate_pass_data['certified_signature'].strip():
                         st.image(gate_pass_data['certified_signature'], width=200)
                         st.success("✓ Already signed")
                     else:
@@ -541,6 +659,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
