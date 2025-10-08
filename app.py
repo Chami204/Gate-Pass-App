@@ -165,7 +165,7 @@ def create_gate_pass_image(gate_pass_data):
     y_position += 30
     draw.text((50, y_position), f"Purpose: {gate_pass_data['purpose']}", fill='black', font=normal_font)
     y_position += 30
-    draw.text((50, y_position), f"Return Date: {gate_pass_data['return_date']}", fill='black', font=normal_font)
+    draw.text((50, y_position), f"Return Date: {gate_pass_data.get('return_date', 'Not specified')}", fill='black', font=normal_font)
     y_position += 30
     draw.text((50, y_position), f"Dispatch Type: {gate_pass_data['dispatch_type']}", fill='black', font=normal_font)
     y_position += 30
@@ -247,7 +247,11 @@ def main():
         requested_by = st.text_input("1. Requested by (Name of the Executive)")
         send_to = st.text_area("2. Send to (Name & Address)", height=80)
         purpose = st.text_area("3. Purpose of sending (For non scale items)", height=80)
-        return_date = st.date_input("4. Tentative returnable date", min_value=date.today())
+        
+        # Make return date optional
+        st.write("4. Tentative returnable date (Optional)")
+        return_date = st.date_input("", value=None, min_value=date.today(), label_visibility="collapsed")
+        
         dispatch_type = st.selectbox("5. Type of dispatch", 
                                    ["Credit Sale", "Cash Sale", "Returnable", "Non Returnable"])
         vehicle_number = st.text_input("6. Vehicle Number", placeholder="Enter vehicle number")
@@ -271,18 +275,13 @@ def main():
             key="items_editor"
         )
         
-        # Certified signature canvas for new form
+        # Certified signature using file upload (fallback)
         st.subheader("Certified Signature")
-        st.write("Draw your signature below:")
-        certified_canvas = st_canvas(
-            stroke_width=2,
-            stroke_color="#000000",
-            background_color="#ffffff",
-            height=150,
-            width=300,
-            drawing_mode="freedraw",
-            key="certified_canvas_new"
-        )
+        st.write("Upload your signature image:")
+        certified_signature = st.file_uploader("Choose signature image", type=['png', 'jpg', 'jpeg'], key="certified_upload")
+        
+        if certified_signature is not None:
+            st.image(certified_signature, width=200)
         
         if st.button("Submit Gate Pass"):
             if not requested_by or not send_to or not vehicle_number:
@@ -297,8 +296,8 @@ def main():
                 st.error("Please add at least one item")
                 return
             
-            if certified_canvas.image_data is None:
-                st.error("Please provide certified signature")
+            if certified_signature is None:
+                st.error("Please upload certified signature")
                 return
             
             # Generate reference and save data
@@ -306,7 +305,7 @@ def main():
                 'requested_by': requested_by,
                 'send_to': send_to,
                 'purpose': purpose,
-                'return_date': return_date.strftime("%Y-%m-%d"),
+                'return_date': return_date.strftime("%Y-%m-%d") if return_date else "",
                 'dispatch_type': dispatch_type,
                 'vehicle_number': vehicle_number,
                 'items': items_data
@@ -315,20 +314,11 @@ def main():
             reference = generate_reference(gate_pass_data)
             gate_pass_data['reference'] = reference
             
-            # Convert canvas to base64
-            if certified_canvas.image_data is not None:
-                import base64
-                from io import BytesIO
-                from PIL import Image
-                
-                # Convert the canvas image data to base64
-                img_data = certified_canvas.image_data
-                if img_data is not None:
-                    pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
-                    buffered = BytesIO()
-                    pil_img.save(buffered, format="PNG")
-                    img_str = base64.b64encode(buffered.getvalue()).decode()
-                    gate_pass_data['certified_signature'] = f"data:image/png;base64,{img_str}"
+            # Convert uploaded signature to base64
+            if certified_signature is not None:
+                certified_bytes = certified_signature.getvalue()
+                certified_b64 = base64.b64encode(certified_bytes).decode()
+                gate_pass_data['certified_signature'] = f"data:image/png;base64,{certified_b64}"
             
             if save_gate_pass(gate_pass_data):
                 st.success(f"Gate Pass submitted successfully!")
@@ -368,7 +358,7 @@ def main():
                     st.text_area("Purpose", value=gate_pass_data['purpose'], disabled=True, height=80)
                 
                 with col2:
-                    st.text_input("Return Date", value=gate_pass_data['return_date'], disabled=True)
+                    st.text_input("Return Date", value=gate_pass_data.get('return_date', 'Not specified'), disabled=True)
                     st.text_input("Dispatch Type", value=gate_pass_data['dispatch_type'], disabled=True)
                     vehicle_number = st.text_input("Vehicle Number", 
                                                  value=gate_pass_data.get('vehicle_number', ''),
@@ -379,7 +369,7 @@ def main():
                 items_df = pd.DataFrame(gate_pass_data['items'])
                 st.dataframe(items_df, use_container_width=True)
                 
-                # Signature sections with canvas
+                # Signature sections with file upload
                 st.subheader("Signatures")
                 
                 col1, col2, col3 = st.columns(3)
@@ -393,51 +383,26 @@ def main():
                 
                 with col2:
                     st.write("**Authorized by**")
-                    st.write("Draw signature below:")
-                    authorized_canvas = st_canvas(
-                        stroke_width=2,
-                        stroke_color="#000000",
-                        background_color="#ffffff",
-                        height=150,
-                        width=200,
-                        drawing_mode="freedraw",
-                        key="authorized_canvas"
-                    )
+                    st.write("Upload signature image:")
+                    authorized_signature = st.file_uploader("Authorized signature", type=['png', 'jpg', 'jpeg'], key="authorized_upload")
+                    if authorized_signature is not None:
+                        st.image(authorized_signature, width=150)
                 
                 with col3:
                     st.write("**Received by**")
-                    st.write("Draw signature below:")
-                    received_canvas = st_canvas(
-                        stroke_width=2,
-                        stroke_color="#000000",
-                        background_color="#ffffff",
-                        height=150,
-                        width=200,
-                        drawing_mode="freedraw",
-                        key="received_canvas"
-                    )
+                    st.write("Upload signature image:")
+                    received_signature = st.file_uploader("Received signature", type=['png', 'jpg', 'jpeg'], key="received_upload")
+                    if received_signature is not None:
+                        st.image(received_signature, width=150)
                 
                 if st.button("Submit Signatures"):
-                    if authorized_canvas.image_data is not None and received_canvas.image_data is not None and vehicle_number:
-                        # Convert canvases to base64
-                        authorized_sig = None
-                        received_sig = None
+                    if authorized_signature is not None and received_signature is not None and vehicle_number:
+                        # Convert uploaded signatures to base64
+                        authorized_b64 = base64.b64encode(authorized_signature.getvalue()).decode()
+                        received_b64 = base64.b64encode(received_signature.getvalue()).decode()
                         
-                        if authorized_canvas.image_data is not None:
-                            img_data = authorized_canvas.image_data
-                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
-                            buffered = io.BytesIO()
-                            pil_img.save(buffered, format="PNG")
-                            img_str = base64.b64encode(buffered.getvalue()).decode()
-                            authorized_sig = f"data:image/png;base64,{img_str}"
-                        
-                        if received_canvas.image_data is not None:
-                            img_data = received_canvas.image_data
-                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
-                            buffered = io.BytesIO()
-                            pil_img.save(buffered, format="PNG")
-                            img_str = base64.b64encode(buffered.getvalue()).decode()
-                            received_sig = f"data:image/png;base64,{img_str}"
+                        authorized_sig = f"data:image/png;base64,{authorized_b64}"
+                        received_sig = f"data:image/png;base64,{received_b64}"
                         
                         if update_signatures(reference_input, 
                                           gate_pass_data.get('certified_signature', ''),
@@ -459,69 +424,6 @@ def main():
                         st.error("Please provide all signatures and vehicle number")
             else:
                 st.error("Gate Pass not found. Please check the reference number.")
-
-# Custom canvas component since streamlit-drawable-canvas might not be available
-def st_canvas(stroke_width=2, stroke_color="#000000", background_color="#ffffff", 
-              height=150, width=300, drawing_mode="freedraw", key=None):
-    """
-    A simple canvas implementation using Streamlit's components
-    """
-    st.markdown(f"""
-    <div style="border: 2px solid #ccc; padding: 10px; border-radius: 5px; background-color: {background_color};">
-        <canvas id="canvas_{key}" width="{width}" height="{height}" 
-                style="border: 1px solid #000; cursor: crosshair;"></canvas>
-    </div>
-    <script>
-        const canvas = document.getElementById('canvas_{key}');
-        const ctx = canvas.getContext('2d');
-        let drawing = false;
-        
-        // Set background
-        ctx.fillStyle = '{background_color}';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        canvas.addEventListener('mousedown', startDrawing);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('mouseout', stopDrawing);
-        
-        function startDrawing(e) {{
-            drawing = true;
-            draw(e);
-        }}
-        
-        function draw(e) {{
-            if (!drawing) return;
-            
-            ctx.lineWidth = {stroke_width};
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '{stroke_color}';
-            
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        }}
-        
-        function stopDrawing() {{
-            drawing = false;
-            ctx.beginPath();
-        }}
-    </script>
-    <small>Draw your signature in the box above</small>
-    """, unsafe_allow_html=True)
-    
-    # For demonstration, we'll use a file uploader as fallback
-    st.write("Or upload signature image:")
-    uploaded_file = st.file_uploader("Choose signature image", type=['png', 'jpg', 'jpeg'], key=f"upload_{key}")
-    
-    if uploaded_file is not None:
-        return type('obj', (object,), {'image_data': None, 'image_file': uploaded_file})
-    return type('obj', (object,), {'image_data': None, 'image_file': None})
 
 if __name__ == "__main__":
     main()
