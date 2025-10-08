@@ -5,7 +5,7 @@ import hashlib
 import datetime
 from datetime import date
 import sqlite3
-import base64
+import os
 
 # Page configuration
 st.set_page_config(
@@ -16,26 +16,30 @@ st.set_page_config(
 
 # Initialize database
 def init_db():
-    conn = sqlite3.connect('gate_pass.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS gate_passes
-        (reference TEXT PRIMARY KEY,
-         requested_by TEXT,
-         send_to TEXT,
-         purpose TEXT,
-         return_date TEXT,
-         dispatch_type TEXT,
-         items TEXT,
-         certified_signature TEXT,
-         authorized_signature TEXT,
-         received_signature TEXT,
-         vehicle_number TEXT,
-         status TEXT,
-         created_date TEXT)
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('gate_pass.db')
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS gate_passes
+            (reference TEXT PRIMARY KEY,
+             requested_by TEXT,
+             send_to TEXT,
+             purpose TEXT,
+             return_date TEXT,
+             dispatch_type TEXT,
+             items TEXT,
+             certified_signature TEXT,
+             authorized_signature TEXT,
+             received_signature TEXT,
+             vehicle_number TEXT,
+             status TEXT,
+             created_date TEXT)
+        ''')
+        conn.commit()
+        conn.close()
+        st.success("Database initialized successfully")
+    except Exception as e:
+        st.error(f"Database error: {e}")
 
 init_db()
 
@@ -55,64 +59,78 @@ def generate_reference(data):
 
 # Function to save gate pass
 def save_gate_pass(data):
-    conn = sqlite3.connect('gate_pass.db')
-    c = conn.cursor()
-    
-    items_json = json.dumps(data['items'])
-    
-    c.execute('''
-        INSERT INTO gate_passes 
-        (reference, requested_by, send_to, purpose, return_date, dispatch_type, 
-         items, certified_signature, authorized_signature, received_signature, 
-         vehicle_number, status, created_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (data['reference'], data['requested_by'], data['send_to'], data['purpose'],
-          data['return_date'], data['dispatch_type'], items_json, 
-          data.get('certified_signature', ''), data.get('authorized_signature', ''),
-          data.get('received_signature', ''), data.get('vehicle_number', ''),
-          'pending', datetime.datetime.now().isoformat()))
-    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('gate_pass.db')
+        c = conn.cursor()
+        
+        items_json = json.dumps(data['items'])
+        
+        c.execute('''
+            INSERT INTO gate_passes 
+            (reference, requested_by, send_to, purpose, return_date, dispatch_type, 
+             items, certified_signature, authorized_signature, received_signature, 
+             vehicle_number, status, created_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (data['reference'], data['requested_by'], data['send_to'], data['purpose'],
+              data['return_date'], data['dispatch_type'], items_json, 
+              data.get('certified_signature', ''), data.get('authorized_signature', ''),
+              data.get('received_signature', ''), data.get('vehicle_number', ''),
+              'pending', datetime.datetime.now().isoformat()))
+        
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error saving gate pass: {e}")
+        return False
 
 # Function to get gate pass by reference
 def get_gate_pass(reference):
-    conn = sqlite3.connect('gate_pass.db')
-    c = conn.cursor()
-    c.execute('SELECT * FROM gate_passes WHERE reference = ?', (reference,))
-    result = c.fetchone()
-    conn.close()
-    
-    if result:
-        return {
-            'reference': result[0],
-            'requested_by': result[1],
-            'send_to': result[2],
-            'purpose': result[3],
-            'return_date': result[4],
-            'dispatch_type': result[5],
-            'items': json.loads(result[6]),
-            'certified_signature': result[7],
-            'authorized_signature': result[8],
-            'received_signature': result[9],
-            'vehicle_number': result[10],
-            'status': result[11],
-            'created_date': result[12]
-        }
-    return None
+    try:
+        conn = sqlite3.connect('gate_pass.db')
+        c = conn.cursor()
+        c.execute('SELECT * FROM gate_passes WHERE reference = ?', (reference,))
+        result = c.fetchone()
+        conn.close()
+        
+        if result:
+            return {
+                'reference': result[0],
+                'requested_by': result[1],
+                'send_to': result[2],
+                'purpose': result[3],
+                'return_date': result[4],
+                'dispatch_type': result[5],
+                'items': json.loads(result[6]),
+                'certified_signature': result[7],
+                'authorized_signature': result[8],
+                'received_signature': result[9],
+                'vehicle_number': result[10],
+                'status': result[11],
+                'created_date': result[12]
+            }
+        return None
+    except Exception as e:
+        st.error(f"Error retrieving gate pass: {e}")
+        return None
 
 # Function to update signatures
 def update_signatures(reference, certified_sig, authorized_sig, received_sig, vehicle_no):
-    conn = sqlite3.connect('gate_pass.db')
-    c = conn.cursor()
-    c.execute('''
-        UPDATE gate_passes 
-        SET certified_signature = ?, authorized_signature = ?, 
-            received_signature = ?, vehicle_number = ?, status = 'completed'
-        WHERE reference = ?
-    ''', (certified_sig, authorized_sig, received_sig, vehicle_no, reference))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect('gate_pass.db')
+        c = conn.cursor()
+        c.execute('''
+            UPDATE gate_passes 
+            SET certified_signature = ?, authorized_signature = ?, 
+                received_signature = ?, vehicle_number = ?, status = 'completed'
+            WHERE reference = ?
+        ''', (certified_sig, authorized_sig, received_sig, vehicle_no, reference))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error updating signatures: {e}")
+        return False
 
 # Main app logic
 def main():
@@ -174,19 +192,18 @@ def main():
             reference = generate_reference(gate_pass_data)
             gate_pass_data['reference'] = reference
             
-            save_gate_pass(gate_pass_data)
-            
-            st.success(f"Gate Pass submitted successfully!")
-            st.info(f"**Your Reference Number:** {reference}")
-            st.warning("Please share this reference number with authorized personnel for signing.")
-            
-            # Reset form
-            st.session_state.items_df = pd.DataFrame({
-                'Quantity': [''],
-                'Description': [''],
-                'Total Value': [''],
-                'Invoice No': ['']
-            })
+            if save_gate_pass(gate_pass_data):
+                st.success(f"Gate Pass submitted successfully!")
+                st.info(f"**Your Reference Number:** {reference}")
+                st.warning("Please share this reference number with authorized personnel for signing.")
+                
+                # Reset form
+                st.session_state.items_df = pd.DataFrame({
+                    'Quantity': [''],
+                    'Description': [''],
+                    'Total Value': [''],
+                    'Invoice No': ['']
+                })
     
     with tab2:
         st.subheader("Sign Existing Gate Pass")
@@ -241,9 +258,9 @@ def main():
                 
                 if st.button("Submit Signatures"):
                     if certified_sig and authorized_sig and received_sig and vehicle_number:
-                        update_signatures(reference_input, certified_sig, authorized_sig, 
-                                        received_sig, vehicle_number)
-                        st.success("Signatures submitted successfully! Gate Pass is now completed.")
+                        if update_signatures(reference_input, certified_sig, authorized_sig, 
+                                        received_sig, vehicle_number):
+                            st.success("Signatures submitted successfully! Gate Pass is now completed.")
                     else:
                         st.error("Please fill all signature fields and vehicle number")
             else:
