@@ -151,17 +151,17 @@ def create_gate_pass_image(gate_pass_data):
     # Try to use Calibri font with larger sizes and letter spacing
     try:
         # Larger font sizes for better readability
-        title_font = ImageFont.truetype("calibri.ttf", 42)  # Increased from 32
-        header_font = ImageFont.truetype("calibri.ttf", 32)  # Increased from 24
-        normal_font = ImageFont.truetype("calibri.ttf", 24)  # Increased from 18 (Calibri 14 equivalent)
-        table_font = ImageFont.truetype("calibri.ttf", 20)   # Increased from 16
+        title_font = ImageFont.truetype("calibri.ttf", 100)  # Increased from 32
+        header_font = ImageFont.truetype("calibri.ttf", 80)  # Increased from 24
+        normal_font = ImageFont.truetype("calibri.ttf", 60)  # Increased from 18 (Calibri 14 equivalent)
+        table_font = ImageFont.truetype("calibri.ttf", 60)   # Increased from 16
     except:
         try:
             # Try Arial if Calibri not available
-            title_font = ImageFont.truetype("arial.ttf", 42)
-            header_font = ImageFont.truetype("arial.ttf", 32)
-            normal_font = ImageFont.truetype("arial.ttf", 24)
-            table_font = ImageFont.truetype("arial.ttf", 20)
+            title_font = ImageFont.truetype("arial.ttf", 100)
+            header_font = ImageFont.truetype("arial.ttf", 80)
+            normal_font = ImageFont.truetype("arial.ttf", 60)
+            table_font = ImageFont.truetype("arial.ttf", 60)
         except:
             # Fallback to default fonts
             title_font = ImageFont.load_default()
@@ -554,3 +554,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
