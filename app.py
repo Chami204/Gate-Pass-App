@@ -8,6 +8,7 @@ import sqlite3
 import base64
 from PIL import Image, ImageDraw, ImageFont
 import io
+import numpy as np
 
 # Page configuration
 st.set_page_config(
@@ -236,6 +237,35 @@ def get_image_download_link(img, filename, text):
     href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
     return href
 
+# Simple canvas component using Streamlit's drawing functionality
+def signature_canvas(label, key):
+    st.write(f"**{label}**")
+    st.write("Draw your signature in the box below:")
+    
+    # Create a canvas using Streamlit's drawing
+    canvas_result = st_canvas(
+        fill_color="rgba(255, 255, 255, 0)",  # Transparent background
+        stroke_width=2,
+        stroke_color="#000000",  # Black color
+        background_color="#ffffff",  # White background
+        background_image=None,
+        update_streamlit=True,
+        height=150,
+        width=300,
+        drawing_mode="freedraw",
+        point_display_radius=0,
+        key=key,
+    )
+    
+    return canvas_result
+
+# Import streamlit-drawable-canvas
+try:
+    from streamlit_drawable_canvas import st_canvas
+except ImportError:
+    st.error("Please install streamlit-drawable-canvas: pip install streamlit-drawable-canvas")
+    st.stop()
+
 # Main app logic
 def main():
     tab1, tab2 = st.tabs(["Create New Gate Pass", "Sign Existing Gate Pass"])
@@ -275,13 +305,9 @@ def main():
             key="items_editor"
         )
         
-        # Certified signature using file upload (fallback)
+        # Certified signature canvas
         st.subheader("Certified Signature")
-        st.write("Upload your signature image:")
-        certified_signature = st.file_uploader("Choose signature image", type=['png', 'jpg', 'jpeg'], key="certified_upload")
-        
-        if certified_signature is not None:
-            st.image(certified_signature, width=200)
+        certified_canvas = signature_canvas("Draw your signature below:", "certified_canvas_new")
         
         if st.button("Submit Gate Pass"):
             if not requested_by or not send_to or not vehicle_number:
@@ -296,8 +322,8 @@ def main():
                 st.error("Please add at least one item")
                 return
             
-            if certified_signature is None:
-                st.error("Please upload certified signature")
+            if certified_canvas.image_data is None:
+                st.error("Please provide certified signature")
                 return
             
             # Generate reference and save data
@@ -314,11 +340,17 @@ def main():
             reference = generate_reference(gate_pass_data)
             gate_pass_data['reference'] = reference
             
-            # Convert uploaded signature to base64
-            if certified_signature is not None:
-                certified_bytes = certified_signature.getvalue()
-                certified_b64 = base64.b64encode(certified_bytes).decode()
-                gate_pass_data['certified_signature'] = f"data:image/png;base64,{certified_b64}"
+            # Convert canvas to base64
+            if certified_canvas.image_data is not None:
+                # Remove alpha channel and convert to PIL Image
+                img_data = certified_canvas.image_data
+                if img_data is not None:
+                    # Convert to PIL Image and then to base64
+                    pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                    buffered = io.BytesIO()
+                    pil_img.save(buffered, format="PNG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode()
+                    gate_pass_data['certified_signature'] = f"data:image/png;base64,{img_str}"
             
             if save_gate_pass(gate_pass_data):
                 st.success(f"Gate Pass submitted successfully!")
@@ -369,7 +401,7 @@ def main():
                 items_df = pd.DataFrame(gate_pass_data['items'])
                 st.dataframe(items_df, use_container_width=True)
                 
-                # Signature sections with file upload
+                # Signature sections with canvas
                 st.subheader("Signatures")
                 
                 col1, col2, col3 = st.columns(3)
@@ -382,27 +414,35 @@ def main():
                         st.write("No signature yet")
                 
                 with col2:
-                    st.write("**Authorized by**")
-                    st.write("Upload signature image:")
-                    authorized_signature = st.file_uploader("Authorized signature", type=['png', 'jpg', 'jpeg'], key="authorized_upload")
-                    if authorized_signature is not None:
-                        st.image(authorized_signature, width=150)
+                    authorized_canvas = signature_canvas("Authorized by", "authorized_canvas")
                 
                 with col3:
-                    st.write("**Received by**")
-                    st.write("Upload signature image:")
-                    received_signature = st.file_uploader("Received signature", type=['png', 'jpg', 'jpeg'], key="received_upload")
-                    if received_signature is not None:
-                        st.image(received_signature, width=150)
+                    received_canvas = signature_canvas("Received by", "received_canvas")
                 
                 if st.button("Submit Signatures"):
-                    if authorized_signature is not None and received_signature is not None and vehicle_number:
-                        # Convert uploaded signatures to base64
-                        authorized_b64 = base64.b64encode(authorized_signature.getvalue()).decode()
-                        received_b64 = base64.b64encode(received_signature.getvalue()).decode()
+                    if (authorized_canvas.image_data is not None and 
+                        received_canvas.image_data is not None and 
+                        vehicle_number):
                         
-                        authorized_sig = f"data:image/png;base64,{authorized_b64}"
-                        received_sig = f"data:image/png;base64,{received_b64}"
+                        # Convert canvases to base64
+                        authorized_sig = None
+                        received_sig = None
+                        
+                        if authorized_canvas.image_data is not None:
+                            img_data = authorized_canvas.image_data
+                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                            buffered = io.BytesIO()
+                            pil_img.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            authorized_sig = f"data:image/png;base64,{img_str}"
+                        
+                        if received_canvas.image_data is not None:
+                            img_data = received_canvas.image_data
+                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                            buffered = io.BytesIO()
+                            pil_img.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            received_sig = f"data:image/png;base64,{img_str}"
                         
                         if update_signatures(reference_input, 
                                           gate_pass_data.get('certified_signature', ''),
