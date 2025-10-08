@@ -22,6 +22,7 @@ st.set_page_config(
 
 # Google Sheets setup with proper private key handling
 # Robust Google Sheets setup
+# Simple Google Sheets setup using the die-casting project credentials
 def setup_google_sheets():
     try:
         # Check if secrets are available
@@ -29,22 +30,8 @@ def setup_google_sheets():
             st.sidebar.warning("Google Sheets credentials not found")
             return None
         
-        # Get the service account info directly from secrets
-        sa_secrets = st.secrets['gcp_service_account']
-        
-        # Create the service account info dictionary
-        service_account_info = {
-            "type": sa_secrets["type"],
-            "project_id": sa_secrets["project_id"],
-            "private_key_id": sa_secrets["private_key_id"],
-            "private_key": sa_secrets["private_key"],
-            "client_email": sa_secrets["client_email"],
-            "client_id": sa_secrets["client_id"],
-            "auth_uri": sa_secrets["auth_uri"],
-            "token_uri": sa_secrets["token_uri"],
-            "auth_provider_x509_cert_url": sa_secrets["auth_provider_x509_cert_url"],
-            "client_x509_cert_url": sa_secrets["client_x509_cert_url"]
-        }
+        # Use the exact structure from secrets (same as die-casting app)
+        service_account_info = dict(st.secrets['gcp_service_account'])
         
         # Create credentials
         creds = Credentials.from_service_account_info(service_account_info)
@@ -56,7 +43,7 @@ def setup_google_sheets():
             st.sidebar.success("✅ Connected to Google Sheets!")
             return sheet
         except gspread.SpreadsheetNotFound:
-            # Create new sheet
+            # Create new sheet if it doesn't exist
             spreadsheet = client.create("Alumex_Gate_Passes")
             sheet = spreadsheet.sheet1
             headers = [
@@ -68,6 +55,10 @@ def setup_google_sheets():
             sheet.append_row(headers)
             st.sidebar.success("✅ Created new Google Sheet!")
             return sheet
+            
+    except Exception as e:
+        st.sidebar.error(f"❌ Google Sheets: {str(e)}")
+        return None
             
     except Exception as e:
         st.sidebar.error(f"❌ Google Sheets: {str(e)}")
@@ -557,6 +548,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
