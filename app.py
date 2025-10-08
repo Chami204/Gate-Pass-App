@@ -21,35 +21,37 @@ st.set_page_config(
 )
 
 # Google Sheets setup
-# Google Sheets setup
 def setup_google_sheets():
     try:
         # Use Streamlit secrets for credentials
         if 'gcp_service_account' in st.secrets:
-            creds_dict = dict(st.secrets['gcp_service_account'])
-            creds = Credentials.from_service_account_info(creds_dict)
+            # Create a copy of the secrets
+            creds_info = dict(st.secrets['gcp_service_account'])
+            
+            # Ensure the private key has proper newlines
+            private_key = creds_info['private_key']
+            if '\\n' in private_key:
+                private_key = private_key.replace('\\n', '\n')
+            elif '\n' not in private_key and 'PRIVATE KEY' in private_key:
+                # If it's a single line with markers, ensure proper formatting
+                private_key = private_key.replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+                private_key = private_key.replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----')
+            
+            creds_info['private_key'] = private_key
+            
+            creds = Credentials.from_service_account_info(creds_info)
+            client = gspread.authorize(creds)
+            
+            # Try to open existing sheet
+            try:
+                sheet = client.open("Alumex_Gate_Passes").sheet1
+                return sheet
+            except gspread.SpreadsheetNotFound:
+                st.error("Google Sheet 'Alumex_Gate_Passes' not found. Please create it and share with the service account.")
+                return None
+                
         else:
             st.error("Google Sheets credentials not found in secrets.")
-            return None
-        
-        client = gspread.authorize(creds)
-        
-        # Try to open existing sheet
-        try:
-            sheet = client.open("Alumex_Gate_Passes").sheet1
-            st.success("✅ Connected to Google Sheets successfully!")
-            return sheet
-        except gspread.SpreadsheetNotFound:
-            st.error("""
-            ❌ Google Sheet 'Alumex_Gate_Passes' not found!
-            
-            Please create the Google Sheet:
-            1. Go to https://sheets.google.com
-            2. Create a new spreadsheet
-            3. Name it exactly: **Alumex_Gate_Passes**
-            4. Share it with: **gate-pass-app@gate-pass-app-474508.iam.gserviceaccount.com**
-            5. Give Editor permission
-            """)
             return None
             
     except Exception as e:
@@ -656,5 +658,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
