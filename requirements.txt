@@ -4,3 +4,5 @@ Pillow
 streamlit-drawable-canvas
 numpy
 fpdf
+gspread
+google-auth
