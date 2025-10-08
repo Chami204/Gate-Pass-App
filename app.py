@@ -21,31 +21,29 @@ st.set_page_config(
 )
 
 # Google Sheets setup - Simple and reliable
+# Google Sheets setup - Simple and direct
 def setup_google_sheets():
     try:
-        # Use the exact same approach as your die casting app
-        if 'gcp_service_account' in st.secrets:
-            # Copy the entire service account info from secrets
-            service_account_info = {
-                "type": st.secrets["gcp_service_account"]["type"],
-                "project_id": st.secrets["gcp_service_account"]["project_id"],
-                "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-                "private_key": st.secrets["gcp_service_account"]["private_key"],
-                "client_email": st.secrets["gcp_service_account"]["client_email"],
-                "client_id": st.secrets["gcp_service_account"]["client_id"],
-                "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
-                "token_uri": st.secrets["gcp_service_account"]["token_uri"],
-                "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
-                "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-            }
-            
-            # Create credentials
-            creds = Credentials.from_service_account_info(service_account_info)
-            client = gspread.authorize(creds)
-            
-            # Try to open the sheet
+        # Check if secrets are available
+        if 'gcp_service_account' not in st.secrets:
+            st.warning("Google Sheets credentials not found in secrets")
+            return None
+        
+        # Use the exact structure from secrets
+        service_account_info = dict(st.secrets['gcp_service_account'])
+        
+        # Create credentials
+        creds = Credentials.from_service_account_info(service_account_info)
+        client = gspread.authorize(creds)
+        
+        # Try to open the sheet
+        try:
             sheet = client.open("Alumex_Gate_Passes").sheet1
+            st.success("✅ Connected to Google Sheets successfully!")
             return sheet
+        except gspread.SpreadsheetNotFound:
+            st.error("Google Sheet 'Alumex_Gate_Passes' not found. Please create it and share with the service account.")
+            return None
             
     except Exception as e:
         st.error(f"Google Sheets connection failed: {str(e)}")
@@ -535,3 +533,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
