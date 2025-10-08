@@ -136,105 +136,157 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
 
 # Function to create gate pass image
 def create_gate_pass_image(gate_pass_data):
-    # Create a blank image with white background
-    img = Image.new('RGB', (800, 1200), color='white')
+    # Create a larger image with white background for better quality
+    img = Image.new('RGB', (1200, 1600), color='white')
     draw = ImageDraw.Draw(img)
     
-    # Try to use a font, fallback to default if not available
+    # Define colors
+    title_color = (0, 0, 139)  # Dark Blue
+    header_color = (0, 100, 0)  # Dark Green
+    border_color = (0, 0, 0)  # Black
+    text_color = (0, 0, 0)  # Black
+    
+    # Try to use larger fonts for better readability
     try:
-        title_font = ImageFont.truetype("arial.ttf", 24)
-        header_font = ImageFont.truetype("arial.ttf", 18)
-        normal_font = ImageFont.truetype("arial.ttf", 14)
+        title_font = ImageFont.truetype("arial.ttf", 32)
+        header_font = ImageFont.truetype("arial.ttf", 24)
+        normal_font = ImageFont.truetype("arial.ttf", 18)
+        table_font = ImageFont.truetype("arial.ttf", 16)
     except:
+        # Fallback to default fonts
         title_font = ImageFont.load_default()
         header_font = ImageFont.load_default()
         normal_font = ImageFont.load_default()
+        table_font = ImageFont.load_default()
     
-    # Header
-    draw.text((400, 50), "Advice Dispatch Gate Pass", fill='black', font=title_font, anchor='mm')
-    draw.text((400, 80), "Alumex Group", fill='black', font=header_font, anchor='mm')
-    draw.text((400, 100), "Sapugaskanda, Makola", fill='black', font=normal_font, anchor='mm')
-    draw.text((400, 120), "Tel: 2400332,2400333,2400421", fill='black', font=normal_font, anchor='mm')
+    # Draw border around entire gate pass
+    draw.rectangle([10, 10, 1190, 1590], outline=border_color, width=3)
+    
+    # Header with colors
+    draw.text((600, 60), "Advice Dispatch Gate Pass", fill=title_color, font=title_font, anchor='mm')
+    draw.text((600, 100), "Alumex Group", fill=header_color, font=header_font, anchor='mm')
+    draw.text((600, 130), "Sapugaskanda, Makola", fill=text_color, font=normal_font, anchor='mm')
+    draw.text((600, 160), "Tel: 2400332,2400333,2400421", fill=text_color, font=normal_font, anchor='mm')
+    
+    # Separator line
+    draw.line([50, 190, 1150, 190], fill=border_color, width=2)
     
     # Basic information
-    y_position = 180
-    draw.text((50, y_position), f"Reference: {gate_pass_data['reference']}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Requested by: {gate_pass_data['requested_by']}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Send to: {gate_pass_data['send_to']}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Purpose: {gate_pass_data['purpose']}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Return Date: {gate_pass_data.get('return_date', 'Not specified')}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Dispatch Type: {gate_pass_data['dispatch_type']}", fill='black', font=normal_font)
-    y_position += 30
-    draw.text((50, y_position), f"Vehicle Number: {gate_pass_data.get('vehicle_number', '')}", fill='black', font=normal_font)
+    y_position = 230
+    draw.text((100, y_position), f"Reference No: {gate_pass_data['reference']}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Requested by: {gate_pass_data['requested_by']}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Send to: {gate_pass_data['send_to']}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Purpose: {gate_pass_data['purpose']}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Return Date: {gate_pass_data.get('return_date', 'Not specified')}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Dispatch Type: {gate_pass_data['dispatch_type']}", fill=text_color, font=normal_font)
+    y_position += 40
+    draw.text((100, y_position), f"Vehicle Number: {gate_pass_data.get('vehicle_number', '')}", fill=text_color, font=normal_font)
     
-    # Items table
-    y_position += 50
-    draw.text((50, y_position), "Items Dispatch Details:", fill='black', font=header_font)
-    y_position += 30
+    # Items table with borders
+    y_position += 60
+    draw.text((100, y_position), "Items Dispatch Details", fill=header_color, font=header_font)
+    y_position += 40
+    
+    # Table headers with background
+    header_bg_color = (240, 240, 240)  # Light gray
+    cell_height = 35
+    col_widths = [100, 400, 200, 200]  # Width for each column
     
     # Table headers
-    draw.text((50, y_position), "Quantity", fill='black', font=normal_font)
-    draw.text((150, y_position), "Description", fill='black', font=normal_font)
-    draw.text((400, y_position), "Total Value", fill='black', font=normal_font)
-    draw.text((550, y_position), "Invoice No", fill='black', font=normal_font)
-    y_position += 20
-    draw.line((50, y_position, 750, y_position), fill='black', width=2)
+    headers = ["Quantity", "Description", "Total Value", "Invoice No"]
+    x_pos = 100
     
-    # Table rows
+    # Draw header background
+    draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=header_bg_color, outline=border_color, width=1)
+    
+    for i, header in enumerate(headers):
+        draw.text((x_pos + col_widths[i]//2, y_position + cell_height//2), header, fill=text_color, font=table_font, anchor='mm')
+        if i < len(headers) - 1:
+            draw.line([x_pos + col_widths[i], y_position, x_pos + col_widths[i], y_position + cell_height], fill=border_color, width=1)
+        x_pos += col_widths[i]
+    
+    y_position += cell_height
+    
+    # Table rows with borders
     for item in gate_pass_data['items']:
-        y_position += 25
-        draw.text((50, y_position), str(item.get('Quantity', '')), fill='black', font=normal_font)
-        draw.text((150, y_position), str(item.get('Description', '')), fill='black', font=normal_font)
-        draw.text((400, y_position), str(item.get('Total Value', '')), fill='black', font=normal_font)
-        draw.text((550, y_position), str(item.get('Invoice No', '')), fill='black', font=normal_font)
+        x_pos = 100
+        # Draw row background (alternating colors for better readability)
+        row_color = (255, 255, 255) if gate_pass_data['items'].index(item) % 2 == 0 else (250, 250, 250)
+        draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=row_color, outline=border_color, width=1)
+        
+        # Draw cell content
+        draw.text((x_pos + col_widths[0]//2, y_position + cell_height//2), str(item.get('Quantity', '')), fill=text_color, font=table_font, anchor='mm')
+        x_pos += col_widths[0]
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        
+        draw.text((x_pos + col_widths[1]//2, y_position + cell_height//2), str(item.get('Description', '')), fill=text_color, font=table_font, anchor='mm')
+        x_pos += col_widths[1]
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        
+        draw.text((x_pos + col_widths[2]//2, y_position + cell_height//2), str(item.get('Total Value', '')), fill=text_color, font=table_font, anchor='mm')
+        x_pos += col_widths[2]
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        
+        draw.text((x_pos + col_widths[3]//2, y_position + cell_height//2), str(item.get('Invoice No', '')), fill=text_color, font=table_font, anchor='mm')
+        
+        y_position += cell_height
     
-    # Signatures
+    # Signatures section
     y_position += 80
-    col_width = 250
+    signature_y = y_position
+    
+    # Signature boxes with borders
+    sig_box_width = 300
+    sig_box_height = 120
+    spacing = 50
     
     # Certified Signature
-    draw.text((125, y_position), "Certified by:", fill='black', font=normal_font)
+    draw.rectangle([100, signature_y, 100 + sig_box_width, signature_y + sig_box_height], outline=border_color, width=2)
+    draw.text((100 + sig_box_width//2, signature_y - 20), "Certified by", fill=header_color, font=normal_font, anchor='mm')
     if gate_pass_data.get('certified_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['certified_signature'].split(',')[1])))
-            sig_img = sig_img.resize((200, 80))
-            img.paste(sig_img, (50, y_position + 20))
+            sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
+            img.paste(sig_img, (110, signature_y + 10))
         except:
-            draw.text((50, y_position + 50), "Signed", fill='black', font=normal_font)
+            draw.text((100 + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     # Authorized Signature
-    draw.text((375, y_position), "Authorized by:", fill='black', font=normal_font)
+    draw.rectangle([100 + sig_box_width + spacing, signature_y, 100 + 2*sig_box_width + spacing, signature_y + sig_box_height], outline=border_color, width=2)
+    draw.text((100 + sig_box_width + spacing + sig_box_width//2, signature_y - 20), "Authorized by", fill=header_color, font=normal_font, anchor='mm')
     if gate_pass_data.get('authorized_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['authorized_signature'].split(',')[1])))
-            sig_img = sig_img.resize((200, 80))
-            img.paste(sig_img, (300, y_position + 20))
+            sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
+            img.paste(sig_img, (110 + sig_box_width + spacing, signature_y + 10))
         except:
-            draw.text((300, y_position + 50), "Signed", fill='black', font=normal_font)
+            draw.text((100 + sig_box_width + spacing + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     # Received Signature
-    draw.text((625, y_position), "Received by:", fill='black', font=normal_font)
+    draw.rectangle([100 + 2*(sig_box_width + spacing), signature_y, 100 + 3*sig_box_width + 2*spacing, signature_y + sig_box_height], outline=border_color, width=2)
+    draw.text((100 + 2*(sig_box_width + spacing) + sig_box_width//2, signature_y - 20), "Received by", fill=header_color, font=normal_font, anchor='mm')
     if gate_pass_data.get('received_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['received_signature'].split(',')[1])))
-            sig_img = sig_img.resize((200, 80))
-            img.paste(sig_img, (550, y_position + 20))
+            sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
+            img.paste(sig_img, (110 + 2*(sig_box_width + spacing), signature_y + 10))
         except:
-            draw.text((550, y_position + 50), "Signed", fill='black', font=normal_font)
+            draw.text((100 + 2*(sig_box_width + spacing) + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     return img
 
-# Function to create download link
-def get_image_download_link(img, filename, text):
+# Function to create download link for JPG
+def get_jpg_download_link(img, filename, text):
     buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
+    # Save as high quality JPG
+    img.save(buffered, format="JPEG", quality=95)
     img_str = base64.b64encode(buffered.getvalue()).decode()
-    href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
+    href = f'<a href="data:image/jpeg;base64,{img_str}" download="{filename}" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; border-radius: 5px;">{text}</a>'
     return href
 
 # Simple canvas component using Streamlit's drawing functionality
@@ -242,10 +294,22 @@ def signature_canvas(label, key):
     st.write(f"**{label}**")
     st.write("Draw your signature in the box below:")
     
-    # Create a canvas using Streamlit's drawing
+    # Create a canvas with border
+    canvas_style = """
+    <style>
+    .canvas-container {
+        border: 2px solid #000000;
+        border-radius: 5px;
+        padding: 10px;
+        background-color: #ffffff;
+    }
+    </style>
+    """
+    st.markdown(canvas_style, unsafe_allow_html=True)
+    
     canvas_result = st_canvas(
         fill_color="rgba(255, 255, 255, 0)",  # Transparent background
-        stroke_width=2,
+        stroke_width=3,  # Thicker strokes for better visibility
         stroke_color="#000000",  # Black color
         background_color="#ffffff",  # White background
         background_image=None,
@@ -357,9 +421,9 @@ def main():
                 st.info(f"**Your Reference Number:** {reference}")
                 st.warning("Please share this reference number with authorized personnel for signing.")
                 
-                # Generate and provide download link
+                # Generate and provide download link as JPG
                 gate_pass_img = create_gate_pass_image(gate_pass_data)
-                st.markdown(get_image_download_link(gate_pass_img, f"gate_pass_{reference}.png", "📥 Download Gate Pass"), unsafe_allow_html=True)
+                st.markdown(get_jpg_download_link(gate_pass_img, f"gate_pass_{reference}.jpg", "📥 Download Gate Pass (JPG)"), unsafe_allow_html=True)
                 
                 # Reset form
                 st.session_state.items_df = pd.DataFrame({
@@ -456,10 +520,10 @@ def main():
                             updated_data['received_signature'] = received_sig
                             updated_data['vehicle_number'] = vehicle_number
                             
-                            # Generate and provide download link
+                            # Generate and provide download link as JPG
                             gate_pass_img = create_gate_pass_image(updated_data)
                             st.success("Signatures submitted successfully! Gate Pass is now completed.")
-                            st.markdown(get_image_download_link(gate_pass_img, f"gate_pass_{reference_input}.png", "📥 Download Completed Gate Pass"), unsafe_allow_html=True)
+                            st.markdown(get_jpg_download_link(gate_pass_img, f"gate_pass_{reference_input}.jpg", "📥 Download Completed Gate Pass (JPG)"), unsafe_allow_html=True)
                     else:
                         st.error("Please provide all signatures and vehicle number")
             else:
