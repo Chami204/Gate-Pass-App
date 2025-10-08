@@ -21,27 +21,48 @@ st.set_page_config(
 )
 
 # Google Sheets setup - Simple and direct
+# Google Sheets setup using environment variables
 def setup_google_sheets():
     try:
-        # Check if secrets are available
-        if 'gcp_service_account' not in st.secrets:
-            st.warning("Google Sheets credentials not found in secrets")
-            return None
-        
-        # Use the exact structure from secrets
-        service_account_info = dict(st.secrets['gcp_service_account'])
-        
-        # Create credentials
-        creds = Credentials.from_service_account_info(service_account_info)
-        client = gspread.authorize(creds)
-        
-        # Try to open the sheet
-        try:
-            sheet = client.open("Alumex_Gate_Passes").sheet1
-            st.sidebar.success("✅ Connected to Google Sheets!")
-            return sheet
-        except gspread.SpreadsheetNotFound:
-            st.sidebar.error("❌ Google Sheet not found. Please create 'Alumex_Gate_Passes' and share with the service account.")
+        # Method 1: Try environment variables first (the die casting app method)
+        if 'GCP_PRIVATE_KEY' in st.secrets:
+            service_account_info = {
+                "type": "service_account",
+                "project_id": st.secrets.get("GCP_PROJECT_ID", "gate-pass-app-474508"),
+                "private_key_id": st.secrets.get("GCP_PRIVATE_KEY_ID", "578b5e4204b866f67dbacd7eb4578ecb185fa230"),
+                "private_key": st.secrets["GCP_PRIVATE_KEY"],
+                "client_email": st.secrets.get("GCP_CLIENT_EMAIL", "gate-pass-app@gate-pass-app-474508.iam.gserviceaccount.com"),
+                "client_id": st.secrets.get("GCP_CLIENT_ID", "105859760417003997237"),
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+                "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/gate-pass-app%40gate-pass-app-474508.iam.gserviceaccount.com"
+            }
+            
+            creds = Credentials.from_service_account_info(service_account_info)
+            client = gspread.authorize(creds)
+            
+            # Try to open the sheet
+            try:
+                sheet = client.open("Alumex_Gate_Passes").sheet1
+                st.sidebar.success("✅ Connected to Google Sheets!")
+                return sheet
+            except gspread.SpreadsheetNotFound:
+                # Create new sheet if it doesn't exist
+                spreadsheet = client.create("Alumex_Gate_Passes")
+                sheet = spreadsheet.sheet1
+                headers = [
+                    "Reference", "Requested_By", "Send_To", "Purpose", 
+                    "Return_Date", "Dispatch_Type", "Vehicle_Number",
+                    "Items_JSON", "Certified_Signature", "Authorized_Signature",
+                    "Received_Signature", "Status", "Created_Date", "Completed_Date"
+                ]
+                sheet.append_row(headers)
+                st.sidebar.success("✅ Created new Google Sheet!")
+                return sheet
+                
+        else:
+            st.sidebar.warning("⚠️ Google Sheets credentials not found")
             return None
             
     except Exception as e:
@@ -529,3 +550,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
