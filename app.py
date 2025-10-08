@@ -20,7 +20,6 @@ st.set_page_config(
     layout="centered"
 )
 
-# Google Sheets setup - Simple and reliable
 # Google Sheets setup - Simple and direct
 def setup_google_sheets():
     try:
@@ -39,14 +38,14 @@ def setup_google_sheets():
         # Try to open the sheet
         try:
             sheet = client.open("Alumex_Gate_Passes").sheet1
-            st.success("✅ Connected to Google Sheets successfully!")
+            st.sidebar.success("✅ Connected to Google Sheets!")
             return sheet
         except gspread.SpreadsheetNotFound:
-            st.error("Google Sheet 'Alumex_Gate_Passes' not found. Please create it and share with the service account.")
+            st.sidebar.error("❌ Google Sheet not found. Please create 'Alumex_Gate_Passes' and share with the service account.")
             return None
             
     except Exception as e:
-        st.error(f"Google Sheets connection failed: {str(e)}")
+        st.sidebar.error(f"❌ Google Sheets: {str(e)}")
         return None
 
 # Initialize Google Sheets
@@ -329,12 +328,6 @@ def signature_canvas(label, key):
 
 # Main app logic
 def main():
-    # Show connection status
-    if gate_pass_sheet is not None:
-        st.sidebar.success("✅ Connected to Google Sheets")
-    else:
-        st.sidebar.warning("⚠️ Using local storage (Google Sheets not connected)")
-    
     tab1, tab2 = st.tabs(["Create New Gate Pass", "Sign Existing Gate Pass"])
     
     with tab1:
@@ -349,7 +342,8 @@ def main():
         
         with col2:
             st.write("4. Tentative returnable date (Optional)")
-            return_date = st.date_input("", value=None, min_value=date.today(), label_visibility="collapsed")
+            # FIXED: Added proper label to avoid warning
+            return_date = st.date_input("Return Date", value=None, min_value=date.today(), label_visibility="collapsed")
             dispatch_type = st.selectbox("5. Type of dispatch", 
                                        ["Credit Sale", "Cash Sale", "Returnable", "Non Returnable"])
             vehicle_number = st.text_input("6. Vehicle Number", placeholder="Enter vehicle number")
@@ -365,10 +359,11 @@ def main():
             })
         
         st.write("**Add items below (you can add/delete rows as needed):**")
+        # FIXED: Replaced use_container_width with width
         edited_df = st.data_editor(
             st.session_state.items_df,
             num_rows="dynamic",
-            use_container_width=True,
+            width='stretch',  # Changed from use_container_width=True
             key="items_editor",
             column_config={
                 "Quantity": st.column_config.TextColumn(width="small"),
@@ -463,8 +458,9 @@ def main():
                                                  placeholder="Enter vehicle number")
                 
                 st.subheader("Items Dispatch Details")
+                # FIXED: Replaced use_container_width with width
                 items_df = pd.DataFrame(gate_pass_data['items'])
-                st.dataframe(items_df, use_container_width=True)
+                st.dataframe(items_df, width='stretch')  # Changed from use_container_width=True
                 
                 st.subheader("Signatures Required")
                 
@@ -533,4 +529,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
