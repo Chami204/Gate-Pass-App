@@ -166,15 +166,15 @@ def create_gate_pass_image(gate_pass_data):
     for font_path in fonts_to_try:
         try:
             if title_font is None:
-                title_font = ImageFont.truetype(font_path, 72)  # TRIPLED: 72px (was 24px)
+                title_font = ImageFont.truetype(font_path, 120)     # Massive title
             if header_font is None:
-                header_font = ImageFont.truetype(font_path, 54)  # TRIPLED: 54px (was 18px)
+                header_font = ImageFont.truetype(font_path, 80)     # Very large headers
             if normal_font is None:
-                normal_font = ImageFont.truetype(font_path, 42)  # TRIPLED: 42px (was 14px)
+                normal_font = ImageFont.truetype(font_path, 65)     # Large normal text
             if table_font is None:
-                table_font = ImageFont.truetype(font_path, 36)   # TRIPLED: 36px (was 12px)
+                table_font = ImageFont.truetype(font_path, 55)      # Large table text
             if signature_font is None:
-                signature_font = ImageFont.truetype(font_path, 30)  # For signature labels
+                signature_font = ImageFont.truetype(font_path, 45)  # Large signature labels
         except:
             continue
     
@@ -606,3 +606,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
