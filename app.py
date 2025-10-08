@@ -21,14 +21,12 @@ st.set_page_config(
 )
 
 # Google Sheets setup
+# Google Sheets setup
 def setup_google_sheets():
     try:
         # Use Streamlit secrets for credentials
         if 'gcp_service_account' in st.secrets:
             creds_dict = dict(st.secrets['gcp_service_account'])
-            # Convert the private key string to actual newlines
-            if 'private_key' in creds_dict:
-                creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
             creds = Credentials.from_service_account_info(creds_dict)
         else:
             st.error("Google Sheets credentials not found in secrets.")
@@ -36,26 +34,24 @@ def setup_google_sheets():
         
         client = gspread.authorize(creds)
         
-        # Try to open existing sheet or create new one
+        # Try to open existing sheet
         try:
             sheet = client.open("Alumex_Gate_Passes").sheet1
             st.success("✅ Connected to Google Sheets successfully!")
+            return sheet
         except gspread.SpreadsheetNotFound:
-            # Create new spreadsheet if it doesn't exist
-            spreadsheet = client.create("Alumex_Gate_Passes")
-            sheet = spreadsheet.sheet1
+            st.error("""
+            ❌ Google Sheet 'Alumex_Gate_Passes' not found!
             
-            # Set up headers
-            headers = [
-                "Reference", "Requested_By", "Send_To", "Purpose", 
-                "Return_Date", "Dispatch_Type", "Vehicle_Number",
-                "Items_JSON", "Certified_Signature", "Authorized_Signature",
-                "Received_Signature", "Status", "Created_Date", "Completed_Date"
-            ]
-            sheet.append_row(headers)
-            st.success("✅ Created new Google Sheet: Alumex_Gate_Passes")
-        
-        return sheet
+            Please create the Google Sheet:
+            1. Go to https://sheets.google.com
+            2. Create a new spreadsheet
+            3. Name it exactly: **Alumex_Gate_Passes**
+            4. Share it with: **gate-pass-app@gate-pass-app-474508.iam.gserviceaccount.com**
+            5. Give Editor permission
+            """)
+            return None
+            
     except Exception as e:
         st.error(f"Error setting up Google Sheets: {str(e)}")
         return None
@@ -660,4 +656,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
