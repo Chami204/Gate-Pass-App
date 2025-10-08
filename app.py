@@ -134,10 +134,12 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         st.error(f"Error updating signatures: {e}")
         return False
 
-# Function to create gate pass image
+# Function to create gate pass image in Landscape A4
 def create_gate_pass_image(gate_pass_data):
-    # Create a larger image with white background for better quality
-    img = Image.new('RGB', (1200, 1600), color='white')
+    # Create landscape A4 size (297x210mm at 300 DPI = 3508x2480 pixels)
+    # Using a more manageable size for better performance
+    width, height = 2480, 1754  # Landscape A4 at 200 DPI
+    img = Image.new('RGB', (width, height), color='white')
     draw = ImageDraw.Draw(img)
     
     # Define colors
@@ -146,137 +148,151 @@ def create_gate_pass_image(gate_pass_data):
     border_color = (0, 0, 0)  # Black
     text_color = (0, 0, 0)  # Black
     
-    # Try to use larger fonts for better readability
+    # Try to use Calibri font with larger sizes and letter spacing
     try:
-        title_font = ImageFont.truetype("arial.ttf", 32)
-        header_font = ImageFont.truetype("arial.ttf", 24)
-        normal_font = ImageFont.truetype("arial.ttf", 18)
-        table_font = ImageFont.truetype("arial.ttf", 16)
+        # Larger font sizes for better readability
+        title_font = ImageFont.truetype("calibri.ttf", 42)  # Increased from 32
+        header_font = ImageFont.truetype("calibri.ttf", 32)  # Increased from 24
+        normal_font = ImageFont.truetype("calibri.ttf", 24)  # Increased from 18 (Calibri 14 equivalent)
+        table_font = ImageFont.truetype("calibri.ttf", 20)   # Increased from 16
     except:
-        # Fallback to default fonts
-        title_font = ImageFont.load_default()
-        header_font = ImageFont.load_default()
-        normal_font = ImageFont.load_default()
-        table_font = ImageFont.load_default()
+        try:
+            # Try Arial if Calibri not available
+            title_font = ImageFont.truetype("arial.ttf", 42)
+            header_font = ImageFont.truetype("arial.ttf", 32)
+            normal_font = ImageFont.truetype("arial.ttf", 24)
+            table_font = ImageFont.truetype("arial.ttf", 20)
+        except:
+            # Fallback to default fonts
+            title_font = ImageFont.load_default()
+            header_font = ImageFont.load_default()
+            normal_font = ImageFont.load_default()
+            table_font = ImageFont.load_default()
     
     # Draw border around entire gate pass
-    draw.rectangle([10, 10, 1190, 1590], outline=border_color, width=3)
+    draw.rectangle([20, 20, width-20, height-20], outline=border_color, width=4)
     
-    # Header with colors
-    draw.text((600, 60), "Advice Dispatch Gate Pass", fill=title_color, font=title_font, anchor='mm')
-    draw.text((600, 100), "Alumex Group", fill=header_color, font=header_font, anchor='mm')
-    draw.text((600, 130), "Sapugaskanda, Makola", fill=text_color, font=normal_font, anchor='mm')
-    draw.text((600, 160), "Tel: 2400332,2400333,2400421", fill=text_color, font=normal_font, anchor='mm')
+    # Header with colors and better spacing
+    draw.text((width//2, 80), "Advice Dispatch Gate Pass", fill=title_color, font=title_font, anchor='mm')
+    draw.text((width//2, 140), "Alumex Group", fill=header_color, font=header_font, anchor='mm')
+    draw.text((width//2, 190), "Sapugaskanda, Makola", fill=text_color, font=normal_font, anchor='mm')
+    draw.text((width//2, 240), "Tel: 2400332,2400333,2400421", fill=text_color, font=normal_font, anchor='mm')
     
     # Separator line
-    draw.line([50, 190, 1150, 190], fill=border_color, width=2)
+    draw.line([50, 280, width-50, 280], fill=border_color, width=3)
     
-    # Basic information
-    y_position = 230
+    # Basic information with more spacing
+    y_position = 330
     draw.text((100, y_position), f"Reference No: {gate_pass_data['reference']}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Requested by: {gate_pass_data['requested_by']}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Send to: {gate_pass_data['send_to']}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Purpose: {gate_pass_data['purpose']}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Return Date: {gate_pass_data.get('return_date', 'Not specified')}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Dispatch Type: {gate_pass_data['dispatch_type']}", fill=text_color, font=normal_font)
-    y_position += 40
+    y_position += 60  # Increased spacing
     draw.text((100, y_position), f"Vehicle Number: {gate_pass_data.get('vehicle_number', '')}", fill=text_color, font=normal_font)
     
-    # Items table with borders
+    # Items table with borders - moved to right side for landscape
+    y_position = 330  # Reset to top for right column
+    right_column_x = width // 2 + 50
+    
+    draw.text((right_column_x, y_position), "Items Dispatch Details", fill=header_color, font=header_font)
     y_position += 60
-    draw.text((100, y_position), "Items Dispatch Details", fill=header_color, font=header_font)
-    y_position += 40
     
     # Table headers with background
     header_bg_color = (240, 240, 240)  # Light gray
-    cell_height = 35
-    col_widths = [100, 400, 200, 200]  # Width for each column
+    cell_height = 50  # Increased cell height
+    col_widths = [120, 400, 200, 200]  # Width for each column
     
     # Table headers
     headers = ["Quantity", "Description", "Total Value", "Invoice No"]
-    x_pos = 100
+    x_pos = right_column_x
     
     # Draw header background
-    draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=header_bg_color, outline=border_color, width=1)
+    draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=header_bg_color, outline=border_color, width=2)
     
     for i, header in enumerate(headers):
         draw.text((x_pos + col_widths[i]//2, y_position + cell_height//2), header, fill=text_color, font=table_font, anchor='mm')
         if i < len(headers) - 1:
-            draw.line([x_pos + col_widths[i], y_position, x_pos + col_widths[i], y_position + cell_height], fill=border_color, width=1)
+            draw.line([x_pos + col_widths[i], y_position, x_pos + col_widths[i], y_position + cell_height], fill=border_color, width=2)
         x_pos += col_widths[i]
     
     y_position += cell_height
     
     # Table rows with borders
     for item in gate_pass_data['items']:
-        x_pos = 100
+        x_pos = right_column_x
         # Draw row background (alternating colors for better readability)
         row_color = (255, 255, 255) if gate_pass_data['items'].index(item) % 2 == 0 else (250, 250, 250)
-        draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=row_color, outline=border_color, width=1)
+        draw.rectangle([x_pos, y_position, x_pos + sum(col_widths), y_position + cell_height], fill=row_color, outline=border_color, width=2)
         
-        # Draw cell content
+        # Draw cell content with proper spacing
         draw.text((x_pos + col_widths[0]//2, y_position + cell_height//2), str(item.get('Quantity', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[0]
-        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=2)
         
         draw.text((x_pos + col_widths[1]//2, y_position + cell_height//2), str(item.get('Description', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[1]
-        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=2)
         
         draw.text((x_pos + col_widths[2]//2, y_position + cell_height//2), str(item.get('Total Value', '')), fill=text_color, font=table_font, anchor='mm')
         x_pos += col_widths[2]
-        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=1)
+        draw.line([x_pos, y_position, x_pos, y_position + cell_height], fill=border_color, width=2)
         
         draw.text((x_pos + col_widths[3]//2, y_position + cell_height//2), str(item.get('Invoice No', '')), fill=text_color, font=table_font, anchor='mm')
         
         y_position += cell_height
     
-    # Signatures section
-    y_position += 80
-    signature_y = y_position
+    # Signatures section at bottom
+    signature_y = height - 350
+    signature_title_y = signature_y - 40
+    
+    # Signature titles
+    draw.text((width//6, signature_title_y), "Certified by", fill=header_color, font=normal_font, anchor='mm')
+    draw.text((width//2, signature_title_y), "Authorized by", fill=header_color, font=normal_font, anchor='mm')
+    draw.text((5*width//6, signature_title_y), "Received by", fill=header_color, font=normal_font, anchor='mm')
     
     # Signature boxes with borders
     sig_box_width = 300
     sig_box_height = 120
-    spacing = 50
     
     # Certified Signature
-    draw.rectangle([100, signature_y, 100 + sig_box_width, signature_y + sig_box_height], outline=border_color, width=2)
-    draw.text((100 + sig_box_width//2, signature_y - 20), "Certified by", fill=header_color, font=normal_font, anchor='mm')
+    cert_x = width//6 - sig_box_width//2
+    draw.rectangle([cert_x, signature_y, cert_x + sig_box_width, signature_y + sig_box_height], outline=border_color, width=3)
     if gate_pass_data.get('certified_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['certified_signature'].split(',')[1])))
             sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
-            img.paste(sig_img, (110, signature_y + 10))
+            img.paste(sig_img, (cert_x + 10, signature_y + 10))
         except:
-            draw.text((100 + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
+            draw.text((cert_x + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     # Authorized Signature
-    draw.rectangle([100 + sig_box_width + spacing, signature_y, 100 + 2*sig_box_width + spacing, signature_y + sig_box_height], outline=border_color, width=2)
-    draw.text((100 + sig_box_width + spacing + sig_box_width//2, signature_y - 20), "Authorized by", fill=header_color, font=normal_font, anchor='mm')
+    auth_x = width//2 - sig_box_width//2
+    draw.rectangle([auth_x, signature_y, auth_x + sig_box_width, signature_y + sig_box_height], outline=border_color, width=3)
     if gate_pass_data.get('authorized_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['authorized_signature'].split(',')[1])))
             sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
-            img.paste(sig_img, (110 + sig_box_width + spacing, signature_y + 10))
+            img.paste(sig_img, (auth_x + 10, signature_y + 10))
         except:
-            draw.text((100 + sig_box_width + spacing + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
+            draw.text((auth_x + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     # Received Signature
-    draw.rectangle([100 + 2*(sig_box_width + spacing), signature_y, 100 + 3*sig_box_width + 2*spacing, signature_y + sig_box_height], outline=border_color, width=2)
-    draw.text((100 + 2*(sig_box_width + spacing) + sig_box_width//2, signature_y - 20), "Received by", fill=header_color, font=normal_font, anchor='mm')
+    rec_x = 5*width//6 - sig_box_width//2
+    draw.rectangle([rec_x, signature_y, rec_x + sig_box_width, signature_y + sig_box_height], outline=border_color, width=3)
     if gate_pass_data.get('received_signature'):
         try:
             sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['received_signature'].split(',')[1])))
             sig_img = sig_img.resize((sig_box_width - 20, sig_box_height - 20))
-            img.paste(sig_img, (110 + 2*(sig_box_width + spacing), signature_y + 10))
+            img.paste(sig_img, (rec_x + 10, signature_y + 10))
         except:
-            draw.text((100 + 2*(sig_box_width + spacing) + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
+            draw.text((rec_x + sig_box_width//2, signature_y + sig_box_height//2), "Signed", fill=text_color, font=normal_font, anchor='mm')
     
     return img
 
@@ -352,21 +368,28 @@ def main():
         
         st.subheader("Details of items Dispatch")
         
-        # Initialize session state for items if not exists
+        # Initialize session state for items if not exists - start with 5 empty rows
         if 'items_df' not in st.session_state:
             st.session_state.items_df = pd.DataFrame({
-                'Quantity': [''],
-                'Description': [''],
-                'Total Value': [''],
-                'Invoice No': ['']
+                'Quantity': ['', '', '', '', ''],
+                'Description': ['', '', '', '', ''],
+                'Total Value': ['', '', '', '', ''],
+                'Invoice No': ['', '', '', '', '']
             })
         
-        # Editable dataframe for items
+        # Editable dataframe for items with more rows and dynamic editing
+        st.write("**Add items below (you can add/delete rows as needed):**")
         edited_df = st.data_editor(
             st.session_state.items_df,
-            num_rows="dynamic",
+            num_rows="dynamic",  # Allows adding and deleting rows
             use_container_width=True,
-            key="items_editor"
+            key="items_editor",
+            column_config={
+                "Quantity": st.column_config.TextColumn(width="small"),
+                "Description": st.column_config.TextColumn(width="medium"),
+                "Total Value": st.column_config.TextColumn(width="medium"),
+                "Invoice No": st.column_config.TextColumn(width="medium")
+            }
         )
         
         # Certified signature canvas
@@ -425,12 +448,12 @@ def main():
                 gate_pass_img = create_gate_pass_image(gate_pass_data)
                 st.markdown(get_jpg_download_link(gate_pass_img, f"gate_pass_{reference}.jpg", "📥 Download Gate Pass (JPG)"), unsafe_allow_html=True)
                 
-                # Reset form
+                # Reset form with 5 empty rows
                 st.session_state.items_df = pd.DataFrame({
-                    'Quantity': [''],
-                    'Description': [''],
-                    'Total Value': [''],
-                    'Invoice No': ['']
+                    'Quantity': ['', '', '', '', ''],
+                    'Description': ['', '', '', '', ''],
+                    'Total Value': ['', '', '', '', ''],
+                    'Invoice No': ['', '', '', '', '']
                 })
     
     with tab2:
