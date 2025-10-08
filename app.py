@@ -135,7 +135,6 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         return False
 
 # Function to create gate pass image with EXTRA LARGE, READABLE text
-# Function to create gate pass image with EXTRA LARGE, READABLE text
 def create_gate_pass_image(gate_pass_data):
     # --- Image setup ---
     width, height = 1300, 900
@@ -162,16 +161,30 @@ def create_gate_pass_image(gate_pass_data):
         header_font = normal_font = table_font = signature_font = ImageFont.load_default()
 
     # --- Helper to draw spaced text ---
-    def draw_spaced_text(draw, position, text, font, fill, spacing=3, anchor=None):
+    def draw_spaced_text(draw, position, text, font, fill, spacing=5):
+        """
+        Draw text with custom spacing between characters.
+    
+        Args:
+            draw: PIL.ImageDraw.Draw object
+            position: (x, y) starting position
+            text: The string to draw
+            font: PIL.ImageFont object
+            fill: Text color
+            spacing: Additional spacing between characters
+        """
         x, y = position
         for ch in text:
-            w, h = draw.textsize(ch, font=font)
-            if anchor == 'mm':  # center anchor handling
-                draw.text((x, y), ch, font=font, fill=fill, anchor="mm")
-                x += w + spacing
-            else:
-                draw.text((x, y), ch, font=font, fill=fill)
-                x += w + spacing
+            # Get character bounding box
+            bbox = draw.textbbox((0, 0), ch, font=font)
+            w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    
+            # Draw the character at current position
+            draw.text((x, y), ch, font=font, fill=fill)
+    
+            # Move x forward with character width + spacing
+            x += w + spacing
+
 
     # --- Border ---
     draw.rectangle([20, 20, width - 20, height - 20], outline=border_color, width=6)
@@ -540,6 +553,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
