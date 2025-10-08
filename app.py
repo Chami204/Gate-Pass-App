@@ -30,11 +30,19 @@ def setup_google_sheets():
             st.sidebar.warning("Google Sheets credentials not found")
             return None
         
-        # Use the exact structure from secrets (same as die-casting app)
+        # Use the exact structure from secrets
         service_account_info = dict(st.secrets['gcp_service_account'])
         
-        # Create credentials
-        creds = Credentials.from_service_account_info(service_account_info)
+        # Create credentials with explicit scopes for gspread
+        creds = service_account.Credentials.from_service_account_info(
+            service_account_info,
+            scopes=[
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
+        )
+        
+        # Authorize gspread client
         client = gspread.authorize(creds)
         
         # Try to open the sheet
@@ -42,29 +50,47 @@ def setup_google_sheets():
             sheet = client.open("Alumex_Gate_Passes").sheet1
             st.sidebar.success("✅ Connected to Google Sheets!")
             return sheet
+            
         except gspread.SpreadsheetNotFound:
             # Create new sheet if it doesn't exist
-            spreadsheet = client.create("Alumex_Gate_Passes")
-            sheet = spreadsheet.sheet1
-            headers = [
-                "Reference", "Requested_By", "Send_To", "Purpose", 
-                "Return_Date", "Dispatch_Type", "Vehicle_Number",
-                "Items_JSON", "Certified_Signature", "Authorized_Signature",
-                "Received_Signature", "Status", "Created_Date", "Completed_Date"
-            ]
-            sheet.append_row(headers)
-            st.sidebar.success("✅ Created new Google Sheet!")
-            return sheet
+            try:
+                spreadsheet = client.create("Alumex_Gate_Passes")
+                
+                # Share the spreadsheet with the service account for full access
+                spreadsheet.share(service_account_info['client_email'], perm_type='user', role='writer')
+                
+                sheet = spreadsheet.sheet1
+                headers = [
+                    "Reference", "Requested_By", "Send_To", "Purpose", 
+                    "Return_Date", "Dispatch_Type", "Vehicle_Number",
+                    "Items_JSON", "Certified_Signature", "Authorized_Signature",
+                    "Received_Signature", "Status", "Created_Date", "Completed_Date"
+                ]
+                sheet.append_row(headers)
+                st.sidebar.success("✅ Created new Google Sheet!")
+                return sheet
+                
+            except Exception as create_error:
+                st.sidebar.error(f"❌ Failed to create Google Sheet: {str(create_error)}")
+                return None
+                
+        except gspread.APIError as api_error:
+            st.sidebar.error(f"❌ Google Sheets API Error: {str(api_error)}")
+            return None
             
     except Exception as e:
-        st.sidebar.error(f"❌ Google Sheets: {str(e)}")
-        return None
-            
-    except Exception as e:
-        st.sidebar.error(f"❌ Google Sheets: {str(e)}")
+        st.sidebar.error(f"❌ Google Sheets setup failed: {str(e)}")
+        
         # Show more detailed error for debugging
-        if "padding" in str(e).lower():
+        if "invalid_scope" in str(e).lower():
+            st.sidebar.error("Scope error - check OAuth scopes in credentials")
+        elif "padding" in str(e).lower():
             st.sidebar.error("Private key formatting error - check secrets format")
+        elif "unauthorized" in str(e).lower() or "permission" in str(e).lower():
+            st.sidebar.error("Permission denied - make sure the sheet is shared with the service account")
+        elif "key" in str(e).lower():
+            st.sidebar.error("Invalid private key - check key format in secrets")
+            
         return None
 
 # Initialize Google Sheets
@@ -548,6 +574,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
