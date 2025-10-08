@@ -89,33 +89,38 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         return False
 
 # Function to create PDF gate pass
+# Function to create PDF gate pass in A4 size
 def create_gate_pass_pdf(gate_pass_data):
-    pdf = FPDF()
+    pdf = FPDF(format='A4')
     pdf.add_page()
     
-    # Set font for the entire document
-    pdf.set_font("Arial", size=12)
+    # Set margins for A4
+    pdf.set_margins(left=15, top=15, right=15)
     
     # Header
+    pdf.set_font("Arial", 'B', 18)
+    pdf.cell(0, 10, "ADVICE DISPATCH GATE PASS", ln=True, align='C')
     pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, "ADVICE DISPATCH GATE PASS", ln=True, align='C')
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, "ALUMEX GROUP", ln=True, align='C')
+    pdf.cell(0, 8, "ALUMEX GROUP", ln=True, align='C')
     pdf.set_font("Arial", size=12)
-    pdf.cell(200, 8, "Sapugaskanda, Makola", ln=True, align='C')
-    pdf.cell(200, 8, "Tel: 2400332,2400333,2400421", ln=True, align='C')
+    pdf.cell(0, 6, "Sapugaskanda, Makola", ln=True, align='C')
+    pdf.cell(0, 6, "Tel: 2400332,2400333,2400421", ln=True, align='C')
     
-    pdf.ln(10)
+    pdf.ln(8)
     
     # Reference Number
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(200, 8, f"Reference: {gate_pass_data['reference']}", ln=True, align='L')
+    pdf.cell(0, 8, f"Reference: {gate_pass_data['reference']}", ln=True, align='L')
     pdf.ln(5)
     
-    # Basic Information
+    # Horizontal line separator
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(8)
+    
+    # Basic Information Section
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, "BASIC INFORMATION", ln=True, align='L')
-    pdf.set_font("Arial", size=12)
+    pdf.cell(0, 10, "BASIC INFORMATION", ln=True, align='L')
+    pdf.set_font("Arial", size=11)
     
     info_data = [
         ("Requested by:", gate_pass_data['requested_by']),
@@ -127,79 +132,99 @@ def create_gate_pass_pdf(gate_pass_data):
     ]
     
     for label, value in info_data:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(50, 8, label, 0, 0)
-        pdf.set_font("Arial", size=12)
-        pdf.multi_cell(0, 8, str(value))
-        pdf.ln(2)
+        pdf.set_font("Arial", 'B', 11)
+        pdf.cell(45, 7, label, 0, 0)
+        pdf.set_font("Arial", size=11)
+        
+        # Handle multi-line text
+        if len(str(value)) > 60:  # If text is too long, use multi_cell
+            x = pdf.get_x()
+            y = pdf.get_y()
+            pdf.multi_cell(0, 7, str(value))
+            pdf.ln(2)
+        else:
+            pdf.cell(0, 7, str(value), ln=True)
     
-    pdf.ln(10)
+    pdf.ln(8)
     
-    # Items Table
+    # Horizontal line separator
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(8)
+    
+    # Items Table Section
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, "ITEMS DISPATCH DETAILS", ln=True, align='L')
+    pdf.cell(0, 10, "ITEMS DISPATCH DETAILS", ln=True, align='L')
     pdf.ln(5)
     
     # Table headers
-    pdf.set_font("Arial", 'B', 12)
-    col_widths = [20, 80, 40, 40]
+    pdf.set_font("Arial", 'B', 11)
+    col_widths = [20, 100, 30, 35]  # Adjusted for A4 width
     headers = ["Qty", "Description", "Value", "Invoice No"]
     
+    # Draw table header with borders
     for i, header in enumerate(headers):
         pdf.cell(col_widths[i], 10, header, 1, 0, 'C')
     pdf.ln()
     
     # Table rows
-    pdf.set_font("Arial", size=11)
+    pdf.set_font("Arial", size=10)
     for item in gate_pass_data['items']:
-        pdf.cell(col_widths[0], 10, str(item.get('Quantity', '')), 1, 0, 'C')
-        pdf.cell(col_widths[1], 10, str(item.get('Description', '')), 1, 0, 'L')
-        pdf.cell(col_widths[2], 10, str(item.get('Total Value', '')), 1, 0, 'C')
-        pdf.cell(col_widths[3], 10, str(item.get('Invoice No', '')), 1, 0, 'C')
+        # Quantity
+        pdf.cell(col_widths[0], 8, str(item.get('Quantity', '')), 1, 0, 'C')
+        
+        # Description (handle long text)
+        desc = str(item.get('Description', ''))
+        if len(desc) > 40:
+            desc = desc[:37] + "..."
+        pdf.cell(col_widths[1], 8, desc, 1, 0, 'L')
+        
+        # Total Value
+        pdf.cell(col_widths[2], 8, str(item.get('Total Value', '')), 1, 0, 'C')
+        
+        # Invoice No
+        pdf.cell(col_widths[3], 8, str(item.get('Invoice No', '')), 1, 0, 'C')
         pdf.ln()
     
-    pdf.ln(15)
+    pdf.ln(12)
+    
+    # Horizontal line separator
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(10)
     
     # Signatures section
     pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, "SIGNATURES", ln=True, align='C')
-    pdf.ln(5)
+    pdf.cell(0, 10, "AUTHORIZATIONS & SIGNATURES", ln=True, align='C')
+    pdf.ln(8)
     
-    # Signature boxes
-    col_width = 60
+    # Signature boxes - COMPLETE BORDERS
+    col_width = 55
+    spacing = 10
+    start_x = 15
+    
     signatures = [
         ("CERTIFIED BY", "Certifying Officer", gate_pass_data.get('certified_signature')),
         ("AUTHORIZED BY", "Authorizing Manager", gate_pass_data.get('authorized_signature')),
         ("RECEIVED BY", "Receiving Party", gate_pass_data.get('received_signature'))
     ]
     
-    # Create signature placeholders
-    for title, label, signature in signatures:
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(col_width, 8, title, 0, 0, 'C')
-    
-    pdf.ln(10)
-    
-    # Signature lines and labels
+    # Signature titles
+    pdf.set_font("Arial", 'B', 11)
     for i, (title, label, signature) in enumerate(signatures):
-        pdf.cell(col_width, 20, "", 1, 0, 'C')  # Signature box
-        if i < len(signatures) - 1:
-            pdf.cell(5, 20, "", 0, 0)  # Spacing between boxes
+        x_position = start_x + (i * (col_width + spacing))
+        pdf.set_xy(x_position, pdf.get_y())
+        pdf.cell(col_width, 6, title, 0, 0, 'C')
     
-    pdf.ln(25)
+    pdf.ln(8)
     
-    # Labels under signatures
-    for title, label, signature in signatures:
-        pdf.set_font("Arial", size=10)
-        pdf.cell(col_width, 5, label, 0, 0, 'C')
-        pdf.cell(5, 5, "", 0, 0)  # Spacing
-    
-    pdf.ln(10)
-    
-    # Add signature images if available
-    y_position = pdf.get_y() - 45  # Position for signature images
-    
+    # Signature boxes with COMPLETE BORDERS
+    current_y = pdf.get_y()
     for i, (title, label, signature) in enumerate(signatures):
+        x_position = start_x + (i * (col_width + spacing))
+        
+        # Draw complete border around signature box
+        pdf.rect(x_position, current_y, col_width, 25)
+        
+        # Add signature image if available
         if signature:
             try:
                 # Convert base64 signature to image file
@@ -207,23 +232,60 @@ def create_gate_pass_pdf(gate_pass_data):
                 sig_img = Image.open(io.BytesIO(sig_img_data))
                 
                 # Save temporary image
-                temp_file = f"temp_sig_{i}.png"
+                temp_file = f"temp_sig_{i}_{gate_pass_data['reference']}.png"
                 sig_img.save(temp_file)
                 
-                # Add image to PDF
-                x_position = 10 + (i * (col_width + 5))
-                pdf.image(temp_file, x=x_position, y=y_position, w=col_width-5, h=15)
+                # Add image to PDF (smaller to fit in box)
+                pdf.image(temp_file, x=x_position + 2, y=current_y + 2, w=col_width - 4, h=21)
                 
                 # Clean up temp file
                 os.remove(temp_file)
             except Exception as e:
-                st.error(f"Error adding signature to PDF: {e}")
+                # If signature image fails, add text placeholder
+                pdf.set_font("Arial", 'I', 8)
+                pdf.set_xy(x_position, current_y + 10)
+                pdf.cell(col_width, 5, "SIGNED", 0, 0, 'C')
+        else:
+            # No signature - show placeholder
+            pdf.set_font("Arial", 'I', 8)
+            pdf.set_xy(x_position, current_y + 10)
+            pdf.cell(col_width, 5, "Signature", 0, 0, 'C')
+    
+    pdf.ln(30)  # Move down after signature boxes
+    
+    # Labels under signatures
+    pdf.set_font("Arial", size=9)
+    for i, (title, label, signature) in enumerate(signatures):
+        x_position = start_x + (i * (col_width + spacing))
+        pdf.set_xy(x_position, pdf.get_y())
+        pdf.cell(col_width, 5, label, 0, 0, 'C')
+    
+    pdf.ln(8)
+    
+    # Lines for written names
+    for i, (title, label, signature) in enumerate(signatures):
+        x_position = start_x + (i * (col_width + spacing))
+        pdf.line(x_position + 5, pdf.get_y(), x_position + col_width - 5, pdf.get_y())
+    
+    pdf.ln(5)
+    
+    # "Name & Designation" labels
+    pdf.set_font("Arial", 'I', 8)
+    for i, (title, label, signature) in enumerate(signatures):
+        x_position = start_x + (i * (col_width + spacing))
+        pdf.set_xy(x_position, pdf.get_y())
+        pdf.cell(col_width, 4, "Name & Designation", 0, 0, 'C')
+    
+    pdf.ln(15)
+    
+    # Final horizontal line
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(8)
     
     # Footer
-    pdf.ln(20)
-    pdf.set_font("Arial", 'I', 10)
+    pdf.set_font("Arial", 'I', 9)
     current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    pdf.cell(200, 10, f"Generated on: {current_date}", ln=True, align='C')
+    pdf.cell(0, 5, f"Generated on: {current_date}", ln=True, align='C')
     
     return pdf
 
@@ -479,3 +541,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
