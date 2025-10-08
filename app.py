@@ -5,7 +5,9 @@ import hashlib
 import datetime
 from datetime import date
 import sqlite3
-import os
+import base64
+from PIL import Image, ImageDraw, ImageFont
+import io
 
 # Page configuration
 st.set_page_config(
@@ -37,7 +39,6 @@ def init_db():
         ''')
         conn.commit()
         conn.close()
-        st.success("Database initialized successfully")
     except Exception as e:
         st.error(f"Database error: {e}")
 
@@ -132,6 +133,109 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         st.error(f"Error updating signatures: {e}")
         return False
 
+# Function to create gate pass image
+def create_gate_pass_image(gate_pass_data):
+    # Create a blank image with white background
+    img = Image.new('RGB', (800, 1200), color='white')
+    draw = ImageDraw.Draw(img)
+    
+    # Try to use a font, fallback to default if not available
+    try:
+        title_font = ImageFont.truetype("arial.ttf", 24)
+        header_font = ImageFont.truetype("arial.ttf", 18)
+        normal_font = ImageFont.truetype("arial.ttf", 14)
+    except:
+        title_font = ImageFont.load_default()
+        header_font = ImageFont.load_default()
+        normal_font = ImageFont.load_default()
+    
+    # Header
+    draw.text((400, 50), "Advice Dispatch Gate Pass", fill='black', font=title_font, anchor='mm')
+    draw.text((400, 80), "Alumex Group", fill='black', font=header_font, anchor='mm')
+    draw.text((400, 100), "Sapugaskanda, Makola", fill='black', font=normal_font, anchor='mm')
+    draw.text((400, 120), "Tel: 2400332,2400333,2400421", fill='black', font=normal_font, anchor='mm')
+    
+    # Basic information
+    y_position = 180
+    draw.text((50, y_position), f"Reference: {gate_pass_data['reference']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Requested by: {gate_pass_data['requested_by']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Send to: {gate_pass_data['send_to']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Purpose: {gate_pass_data['purpose']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Return Date: {gate_pass_data['return_date']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Dispatch Type: {gate_pass_data['dispatch_type']}", fill='black', font=normal_font)
+    y_position += 30
+    draw.text((50, y_position), f"Vehicle Number: {gate_pass_data.get('vehicle_number', '')}", fill='black', font=normal_font)
+    
+    # Items table
+    y_position += 50
+    draw.text((50, y_position), "Items Dispatch Details:", fill='black', font=header_font)
+    y_position += 30
+    
+    # Table headers
+    draw.text((50, y_position), "Quantity", fill='black', font=normal_font)
+    draw.text((150, y_position), "Description", fill='black', font=normal_font)
+    draw.text((400, y_position), "Total Value", fill='black', font=normal_font)
+    draw.text((550, y_position), "Invoice No", fill='black', font=normal_font)
+    y_position += 20
+    draw.line((50, y_position, 750, y_position), fill='black', width=2)
+    
+    # Table rows
+    for item in gate_pass_data['items']:
+        y_position += 25
+        draw.text((50, y_position), str(item.get('Quantity', '')), fill='black', font=normal_font)
+        draw.text((150, y_position), str(item.get('Description', '')), fill='black', font=normal_font)
+        draw.text((400, y_position), str(item.get('Total Value', '')), fill='black', font=normal_font)
+        draw.text((550, y_position), str(item.get('Invoice No', '')), fill='black', font=normal_font)
+    
+    # Signatures
+    y_position += 80
+    col_width = 250
+    
+    # Certified Signature
+    draw.text((125, y_position), "Certified by:", fill='black', font=normal_font)
+    if gate_pass_data.get('certified_signature'):
+        try:
+            sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['certified_signature'].split(',')[1])))
+            sig_img = sig_img.resize((200, 80))
+            img.paste(sig_img, (50, y_position + 20))
+        except:
+            draw.text((50, y_position + 50), "Signed", fill='black', font=normal_font)
+    
+    # Authorized Signature
+    draw.text((375, y_position), "Authorized by:", fill='black', font=normal_font)
+    if gate_pass_data.get('authorized_signature'):
+        try:
+            sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['authorized_signature'].split(',')[1])))
+            sig_img = sig_img.resize((200, 80))
+            img.paste(sig_img, (300, y_position + 20))
+        except:
+            draw.text((300, y_position + 50), "Signed", fill='black', font=normal_font)
+    
+    # Received Signature
+    draw.text((625, y_position), "Received by:", fill='black', font=normal_font)
+    if gate_pass_data.get('received_signature'):
+        try:
+            sig_img = Image.open(io.BytesIO(base64.b64decode(gate_pass_data['received_signature'].split(',')[1])))
+            sig_img = sig_img.resize((200, 80))
+            img.paste(sig_img, (550, y_position + 20))
+        except:
+            draw.text((550, y_position + 50), "Signed", fill='black', font=normal_font)
+    
+    return img
+
+# Function to create download link
+def get_image_download_link(img, filename, text):
+    buffered = io.BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">{text}</a>'
+    return href
+
 # Main app logic
 def main():
     tab1, tab2 = st.tabs(["Create New Gate Pass", "Sign Existing Gate Pass"])
@@ -146,6 +250,7 @@ def main():
         return_date = st.date_input("4. Tentative returnable date", min_value=date.today())
         dispatch_type = st.selectbox("5. Type of dispatch", 
                                    ["Credit Sale", "Cash Sale", "Returnable", "Non Returnable"])
+        vehicle_number = st.text_input("6. Vehicle Number", placeholder="Enter vehicle number")
         
         st.subheader("Details of items Dispatch")
         
@@ -166,9 +271,22 @@ def main():
             key="items_editor"
         )
         
+        # Certified signature canvas for new form
+        st.subheader("Certified Signature")
+        st.write("Draw your signature below:")
+        certified_canvas = st_canvas(
+            stroke_width=2,
+            stroke_color="#000000",
+            background_color="#ffffff",
+            height=150,
+            width=300,
+            drawing_mode="freedraw",
+            key="certified_canvas_new"
+        )
+        
         if st.button("Submit Gate Pass"):
-            if not requested_by or not send_to:
-                st.error("Please fill in all required fields")
+            if not requested_by or not send_to or not vehicle_number:
+                st.error("Please fill in all required fields including vehicle number")
                 return
             
             # Filter out empty rows
@@ -179,6 +297,10 @@ def main():
                 st.error("Please add at least one item")
                 return
             
+            if certified_canvas.image_data is None:
+                st.error("Please provide certified signature")
+                return
+            
             # Generate reference and save data
             gate_pass_data = {
                 'requested_by': requested_by,
@@ -186,16 +308,36 @@ def main():
                 'purpose': purpose,
                 'return_date': return_date.strftime("%Y-%m-%d"),
                 'dispatch_type': dispatch_type,
+                'vehicle_number': vehicle_number,
                 'items': items_data
             }
             
             reference = generate_reference(gate_pass_data)
             gate_pass_data['reference'] = reference
             
+            # Convert canvas to base64
+            if certified_canvas.image_data is not None:
+                import base64
+                from io import BytesIO
+                from PIL import Image
+                
+                # Convert the canvas image data to base64
+                img_data = certified_canvas.image_data
+                if img_data is not None:
+                    pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                    buffered = BytesIO()
+                    pil_img.save(buffered, format="PNG")
+                    img_str = base64.b64encode(buffered.getvalue()).decode()
+                    gate_pass_data['certified_signature'] = f"data:image/png;base64,{img_str}"
+            
             if save_gate_pass(gate_pass_data):
                 st.success(f"Gate Pass submitted successfully!")
                 st.info(f"**Your Reference Number:** {reference}")
                 st.warning("Please share this reference number with authorized personnel for signing.")
+                
+                # Generate and provide download link
+                gate_pass_img = create_gate_pass_image(gate_pass_data)
+                st.markdown(get_image_download_link(gate_pass_img, f"gate_pass_{reference}.png", "📥 Download Gate Pass"), unsafe_allow_html=True)
                 
                 # Reset form
                 st.session_state.items_df = pd.DataFrame({
@@ -228,43 +370,158 @@ def main():
                 with col2:
                     st.text_input("Return Date", value=gate_pass_data['return_date'], disabled=True)
                     st.text_input("Dispatch Type", value=gate_pass_data['dispatch_type'], disabled=True)
+                    vehicle_number = st.text_input("Vehicle Number", 
+                                                 value=gate_pass_data.get('vehicle_number', ''),
+                                                 placeholder="Enter vehicle number")
                 
                 # Display items
                 st.subheader("Items Dispatch Details")
                 items_df = pd.DataFrame(gate_pass_data['items'])
                 st.dataframe(items_df, use_container_width=True)
                 
-                # Signature sections
+                # Signature sections with canvas
                 st.subheader("Signatures")
                 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     st.write("**Certified by signature**")
-                    certified_sig = st.text_input("Certified Signature", key="certified_sig", 
-                                                placeholder="Enter signature")
+                    if gate_pass_data.get('certified_signature'):
+                        st.image(gate_pass_data['certified_signature'], width=200)
+                    else:
+                        st.write("No signature yet")
                 
                 with col2:
                     st.write("**Authorized by**")
-                    authorized_sig = st.text_input("Authorized Signature", key="authorized_sig",
-                                                 placeholder="Enter signature")
+                    st.write("Draw signature below:")
+                    authorized_canvas = st_canvas(
+                        stroke_width=2,
+                        stroke_color="#000000",
+                        background_color="#ffffff",
+                        height=150,
+                        width=200,
+                        drawing_mode="freedraw",
+                        key="authorized_canvas"
+                    )
                 
                 with col3:
                     st.write("**Received by**")
-                    received_sig = st.text_input("Received Signature", key="received_sig",
-                                               placeholder="Enter signature")
-                
-                vehicle_number = st.text_input("Vehicle Number", placeholder="Enter vehicle number")
+                    st.write("Draw signature below:")
+                    received_canvas = st_canvas(
+                        stroke_width=2,
+                        stroke_color="#000000",
+                        background_color="#ffffff",
+                        height=150,
+                        width=200,
+                        drawing_mode="freedraw",
+                        key="received_canvas"
+                    )
                 
                 if st.button("Submit Signatures"):
-                    if certified_sig and authorized_sig and received_sig and vehicle_number:
-                        if update_signatures(reference_input, certified_sig, authorized_sig, 
-                                        received_sig, vehicle_number):
+                    if authorized_canvas.image_data is not None and received_canvas.image_data is not None and vehicle_number:
+                        # Convert canvases to base64
+                        authorized_sig = None
+                        received_sig = None
+                        
+                        if authorized_canvas.image_data is not None:
+                            img_data = authorized_canvas.image_data
+                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                            buffered = io.BytesIO()
+                            pil_img.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            authorized_sig = f"data:image/png;base64,{img_str}"
+                        
+                        if received_canvas.image_data is not None:
+                            img_data = received_canvas.image_data
+                            pil_img = Image.fromarray((img_data[:, :, :3]).astype('uint8'))
+                            buffered = io.BytesIO()
+                            pil_img.save(buffered, format="PNG")
+                            img_str = base64.b64encode(buffered.getvalue()).decode()
+                            received_sig = f"data:image/png;base64,{img_str}"
+                        
+                        if update_signatures(reference_input, 
+                                          gate_pass_data.get('certified_signature', ''),
+                                          authorized_sig, 
+                                          received_sig, 
+                                          vehicle_number):
+                            
+                            # Update the gate pass data with new signatures
+                            updated_data = gate_pass_data.copy()
+                            updated_data['authorized_signature'] = authorized_sig
+                            updated_data['received_signature'] = received_sig
+                            updated_data['vehicle_number'] = vehicle_number
+                            
+                            # Generate and provide download link
+                            gate_pass_img = create_gate_pass_image(updated_data)
                             st.success("Signatures submitted successfully! Gate Pass is now completed.")
+                            st.markdown(get_image_download_link(gate_pass_img, f"gate_pass_{reference_input}.png", "📥 Download Completed Gate Pass"), unsafe_allow_html=True)
                     else:
-                        st.error("Please fill all signature fields and vehicle number")
+                        st.error("Please provide all signatures and vehicle number")
             else:
                 st.error("Gate Pass not found. Please check the reference number.")
+
+# Custom canvas component since streamlit-drawable-canvas might not be available
+def st_canvas(stroke_width=2, stroke_color="#000000", background_color="#ffffff", 
+              height=150, width=300, drawing_mode="freedraw", key=None):
+    """
+    A simple canvas implementation using Streamlit's components
+    """
+    st.markdown(f"""
+    <div style="border: 2px solid #ccc; padding: 10px; border-radius: 5px; background-color: {background_color};">
+        <canvas id="canvas_{key}" width="{width}" height="{height}" 
+                style="border: 1px solid #000; cursor: crosshair;"></canvas>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas_{key}');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        
+        // Set background
+        ctx.fillStyle = '{background_color}';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        
+        function startDrawing(e) {{
+            drawing = true;
+            draw(e);
+        }}
+        
+        function draw(e) {{
+            if (!drawing) return;
+            
+            ctx.lineWidth = {stroke_width};
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '{stroke_color}';
+            
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }}
+        
+        function stopDrawing() {{
+            drawing = false;
+            ctx.beginPath();
+        }}
+    </script>
+    <small>Draw your signature in the box above</small>
+    """, unsafe_allow_html=True)
+    
+    # For demonstration, we'll use a file uploader as fallback
+    st.write("Or upload signature image:")
+    uploaded_file = st.file_uploader("Choose signature image", type=['png', 'jpg', 'jpeg'], key=f"upload_{key}")
+    
+    if uploaded_file is not None:
+        return type('obj', (object,), {'image_data': None, 'image_file': uploaded_file})
+    return type('obj', (object,), {'image_data': None, 'image_file': None})
 
 if __name__ == "__main__":
     main()
