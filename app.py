@@ -89,13 +89,26 @@ def update_signatures(reference, certified_sig, authorized_sig, received_sig, ve
         return False
 
 # Function to create PDF gate pass
-# Function to create PDF gate pass in A4 size
+# Function to create PDF gate pass in A4 size with footer
 def create_gate_pass_pdf(gate_pass_data):
-    pdf = FPDF(format='A4')
+    # Create PDF class with footer
+    class PDFWithFooter(FPDF):
+        def footer(self):
+            # Position at 1.5 cm from bottom
+            self.set_y(-15)
+            # Set font
+            self.set_font('Arial', 'I', 9)
+            # Add generated date and time
+            current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Page number and generation info
+            self.cell(0, 10, f'Generated on: {current_date} | Page {self.page_no()}', 0, 0, 'C')
+    
+    pdf = PDFWithFooter(format='A4')
     pdf.add_page()
     
     # Set margins for A4
     pdf.set_margins(left=15, top=15, right=15)
+    pdf.set_auto_page_break(auto=True, margin=15)
     
     # Header
     pdf.set_font("Arial", 'B', 18)
@@ -276,16 +289,8 @@ def create_gate_pass_pdf(gate_pass_data):
         pdf.set_xy(x_position, pdf.get_y())
         pdf.cell(col_width, 4, "Name & Designation", 0, 0, 'C')
     
-    pdf.ln(15)
-    
-    # Final horizontal line
-    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
-    pdf.ln(8)
-    
-    # Footer
-    pdf.set_font("Arial", 'I', 9)
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    pdf.cell(0, 5, f"Generated on: {current_date}", ln=True, align='C')
+    # Remove the old footer generation from the main content
+    # The footer will now automatically appear on all pages
     
     return pdf
 
@@ -541,4 +546,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
