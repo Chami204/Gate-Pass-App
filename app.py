@@ -282,12 +282,7 @@ def create_gate_pass_pdf(gate_pass_data):
     
     pdf.ln(5)
     
-    # "Name & Designation" labels
-    pdf.set_font("Arial", 'I', 8)
-    for i, (title, label, signature) in enumerate(signatures):
-        x_position = start_x + (i * (col_width + spacing))
-        pdf.set_xy(x_position, pdf.get_y())
-        pdf.cell(col_width, 4, "Name & Designation", 0, 0, 'C')
+    
     
     # Remove the old footer generation from the main content
     # The footer will now automatically appear on all pages
@@ -546,5 +541,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
