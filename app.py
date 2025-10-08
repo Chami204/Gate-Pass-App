@@ -25,11 +25,13 @@ def setup_google_sheets():
     try:
         # Use Streamlit secrets for credentials
         if 'gcp_service_account' in st.secrets:
-            creds_dict = st.secrets['gcp_service_account']
+            creds_dict = dict(st.secrets['gcp_service_account'])
+            # Convert the private key string to actual newlines
+            if 'private_key' in creds_dict:
+                creds_dict['private_key'] = creds_dict['private_key'].replace('\\n', '\n')
             creds = Credentials.from_service_account_info(creds_dict)
         else:
-            # For local development - you can create a secrets.toml file
-            st.error("Google Sheets credentials not found. Please set up Streamlit secrets.")
+            st.error("Google Sheets credentials not found in secrets.")
             return None
         
         client = gspread.authorize(creds)
@@ -37,7 +39,8 @@ def setup_google_sheets():
         # Try to open existing sheet or create new one
         try:
             sheet = client.open("Alumex_Gate_Passes").sheet1
-        except:
+            st.success("✅ Connected to Google Sheets successfully!")
+        except gspread.SpreadsheetNotFound:
             # Create new spreadsheet if it doesn't exist
             spreadsheet = client.create("Alumex_Gate_Passes")
             sheet = spreadsheet.sheet1
@@ -50,13 +53,11 @@ def setup_google_sheets():
                 "Received_Signature", "Status", "Created_Date", "Completed_Date"
             ]
             sheet.append_row(headers)
-            
-            # Make the sheet publicly readable if needed (optional)
-            spreadsheet.share(None, perm_type='anyone', role='reader')
+            st.success("✅ Created new Google Sheet: Alumex_Gate_Passes")
         
         return sheet
     except Exception as e:
-        st.error(f"Error setting up Google Sheets: {e}")
+        st.error(f"Error setting up Google Sheets: {str(e)}")
         return None
 
 # Initialize Google Sheets
@@ -659,3 +660,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
