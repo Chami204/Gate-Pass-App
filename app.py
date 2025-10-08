@@ -21,37 +21,29 @@ st.set_page_config(
 )
 
 # Google Sheets setup with proper private key handling
+# Robust Google Sheets setup
 def setup_google_sheets():
     try:
         # Check if secrets are available
         if 'gcp_service_account' not in st.secrets:
-            st.sidebar.warning("Google Sheets credentials not found in secrets")
+            st.sidebar.warning("Google Sheets credentials not found")
             return None
         
-        # Get the private key and ensure proper formatting
-        private_key = st.secrets['gcp_service_account']['private_key']
+        # Get the service account info directly from secrets
+        sa_secrets = st.secrets['gcp_service_account']
         
-        # Fix the private key formatting - remove any extra spaces or issues
-        private_key = private_key.strip()
-        
-        # Ensure it has proper BEGIN/END markers
-        if not private_key.startswith('-----BEGIN PRIVATE KEY-----'):
-            private_key = '-----BEGIN PRIVATE KEY-----\n' + private_key
-        if not private_key.endswith('-----END PRIVATE KEY-----'):
-            private_key = private_key + '\n-----END PRIVATE KEY-----'
-        
-        # Create service account info with the cleaned private key
+        # Create the service account info dictionary
         service_account_info = {
-            "type": st.secrets['gcp_service_account']['type'],
-            "project_id": st.secrets['gcp_service_account']['project_id'],
-            "private_key_id": st.secrets['gcp_service_account']['private_key_id'],
-            "private_key": private_key,
-            "client_email": st.secrets['gcp_service_account']['client_email'],
-            "client_id": st.secrets['gcp_service_account']['client_id'],
-            "auth_uri": st.secrets['gcp_service_account']['auth_uri'],
-            "token_uri": st.secrets['gcp_service_account']['token_uri'],
-            "auth_provider_x509_cert_url": st.secrets['gcp_service_account']['auth_provider_x509_cert_url'],
-            "client_x509_cert_url": st.secrets['gcp_service_account']['client_x509_cert_url']
+            "type": sa_secrets["type"],
+            "project_id": sa_secrets["project_id"],
+            "private_key_id": sa_secrets["private_key_id"],
+            "private_key": sa_secrets["private_key"],
+            "client_email": sa_secrets["client_email"],
+            "client_id": sa_secrets["client_id"],
+            "auth_uri": sa_secrets["auth_uri"],
+            "token_uri": sa_secrets["token_uri"],
+            "auth_provider_x509_cert_url": sa_secrets["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": sa_secrets["client_x509_cert_url"]
         }
         
         # Create credentials
@@ -64,7 +56,7 @@ def setup_google_sheets():
             st.sidebar.success("✅ Connected to Google Sheets!")
             return sheet
         except gspread.SpreadsheetNotFound:
-            # Create new sheet if it doesn't exist
+            # Create new sheet
             spreadsheet = client.create("Alumex_Gate_Passes")
             sheet = spreadsheet.sheet1
             headers = [
@@ -79,6 +71,9 @@ def setup_google_sheets():
             
     except Exception as e:
         st.sidebar.error(f"❌ Google Sheets: {str(e)}")
+        # Show more detailed error for debugging
+        if "padding" in str(e).lower():
+            st.sidebar.error("Private key formatting error - check secrets format")
         return None
 
 # Initialize Google Sheets
@@ -562,5 +557,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
